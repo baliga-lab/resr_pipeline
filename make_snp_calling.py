@@ -31,22 +31,6 @@ cut -f2-4 {{fix_file}} > {{snp_file}}
 
 UNFIXED_TEMPLATE="""#!/bin/bash
 
-# parameters filename
-pileup=Sample.pileup
-var=Sample.varscan
-cns=Sample.cns
-ppe=Sample.ppe
-format=Sample.for
-forup=Sample.forup
-dep=Sample.dep
-mix=Sample.mix
-mixfor=Sample.mixfor
-mixmark=Sample.mixmark
-markkept=Sample.markkept
-keptfilt=Sample.keptfilt
-keptsnp=Sample.keptsnp
-keptanofilt=Sample.keptanofilt
-
 sickle pe -l 35 -f {{fastq1}} -r {{fastq2}} -t sanger -o {{trimmed1}} -p {{trimmed2}} -s {{trimmedS}}
 bwa aln -R 1 {{fasta_path}} {{trimmed1}} > {{sai1}}
 bwa aln -R 1 {{fasta_path}} {{trimmed2}} > {{sai2}}
@@ -74,7 +58,8 @@ perl {{resr_path}}/format_trans.pl {{ppe_file}} > {{for_file}}
 perl {{resr_path}}/mix_pileup_merge.pl {{for_file}} {{pileup_file}} > {{forup_file}}
 
 #average sequencing depth, only include samples with genome coverage rate >0.9 and sequencing depth >20X
-sed 's/:/\t/g' $cns|awk '{if (\$6 >= 3){n++;sum+=\$6}} END {print \"\t\",n/4411532,\"\t\",sum/n}' > {{dep_file}}
+#sed 's/:/\\t/g' {{cns_file}}|awk '{if ($6 >= 3){n++;sum+=$6}} END {print \"\\t\",n/4411532,\"\\t\",sum/n}' > {{dep_file}}
+python3 {{resr_path}}/avg_sequencing_depth.py {{cns_file}} > {{dep_file}}
 
 #extract unfixed SNPs from forup files, this will create two files: "markdisc" and "markkept"; the suspected false positives(such as mutations with tail region enrichment) will be moved to markdisc file
 perl {{resr_path}}/mix_extract_0.95.pl {{forup_file}} > {{mix_file}}
