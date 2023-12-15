@@ -126,7 +126,7 @@ if __name__ == '__main__':
         "forup_file": "%s.forup" % stem0, "snp_file": "%s.snp" % stem0,
         "dep_file": "%s.dep" % stem0, "mix_file": "%s.mix" % stem0,
         "mixfor_file": "%s.mixfor" % stem0, "mixmark_file": "%s.mixmark" % stem0,
-        "markkept_file": "%s.markkept" % stem0,
+        "markkept_file": "%s.mixmarkkept" % stem0,
         "keptfilt_file": "%s.keptfilt" % stem0, "keptsnp_file": "%s.keptsnp" % stem0,
         "keptanofilt_file": "%s.keptanofilt" % stem0
     }
