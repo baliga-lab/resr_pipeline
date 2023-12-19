@@ -99,12 +99,15 @@ while (<F4>){
     foreach $i(@gene) {
         if (($a[0]>=$start{$i})&&($a[0]<=$end{$i})){   # mutation location
             if ($i=~m/MTB/) {
+                print("MTB mutation GENE: $i\n");
                 print "$a[0]\t$a[1]\t$a[2]\t-\t---\t---\t$i\t$name{$i}\t$des{$i}\t$cat{$i}";
             } elsif($k==0) {
                 if ($strand{$i} eq "+") {
+                    print("NON-MTB GENE (k==0, +): $i\n");
                     $length=$end{$i}-$start{$i}+1;
                     $seq=substr($genome,$start{$i}-1,$length);
                     $loci=$a[0]-$start{$i}+1;         #loci
+                    #print("loci: $loci\n");
                     $count=$loci/3;
                     $ct=int($loci/3);
                     $remain=$loci%3;
@@ -129,6 +132,7 @@ while (<F4>){
                     }
                 }
                 elsif($strand{$i} eq "-"){
+                    print("NON-MTB GENE (k==0, -): $i\n");
                     $length=$end{$i}-$start{$i}+1;
                     $sequence=substr($genome,$start{$i}-1,$length);
                     $seq=reverse $sequence;
@@ -157,6 +161,8 @@ while (<F4>){
                     }
                     $wd=~tr/ATGC/TACG/;
                     $mt=~tr/ATGC/TACG/;
+                } else {
+                    print("WTF ???\n");
                 }
                 if($code{$wd} eq $code{$mt}){
                     $type="Synonymous";
@@ -165,9 +171,11 @@ while (<F4>){
                 }
                 print "$a[0]\t$a[1]\t$a[2]\t$codon\t$type-$code{$wd}-$code{$mt}\t$wd-$mt\t$i\t$name{$i}\t$des{$i}\t$cat{$i}";
                 $type="";
+                #die;  ## WWW
             }
             if ($k==1){
                 if($strand{$i} eq "+"){
+                    print("NON-MTB GENE (k==1, +): $i\n");
                     $length=$end{$i}-$start{$i}+1;
                     $seq=substr($genome,$start{$i}-1,$length);
                     $loci=$a[0]-$start{$i}+1;            #loci
@@ -195,6 +203,7 @@ while (<F4>){
                     }
                 }
                 elsif($strand{$i} eq "-"){
+                    print("NON-MTB GENE (k==1, -): $i\n");
                     $length=$end{$i}-$start{$i}+1;
                     $sequence=substr($genome,$start{$i}-1,$length);
                     $seq=reverse $sequence;
@@ -233,10 +242,13 @@ while (<F4>){
                 $type="";
             }
             $k++;
+        } else {
+            #print("not a gene location\n");
         }
     }
     $k=0;
     foreach $j(@igr){
+        #print("JIGR: $j !!!!\n");
         if(($a[0]>=$start{$j})&&($a[0]<=$end{$j})){
             @b=split "-",$j;
             if($j eq "Rv3924c-Rv0001"){
