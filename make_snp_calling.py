@@ -75,6 +75,7 @@ cat *mixmark > all_MIX.txt
 perl {{resr_path}}/loci_freq_count.pl all_MIX.txt > mix_repeat.txt
 perl {{resr_path}}/repeat_number_merge.pl mix_repeat.txt kept_repeat.txt > merge_kept_mix.txt
 perl {{resr_path}}/ratio.pl merge_kept_mix.txt > merge_kept_mix_ratio.txt
+# Comparing to 5 can lead to 0 *per5up.txt files
 awk '$4>=5' merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > $i.per5up.txt;grep -w $i all_KEPT.txt|cut -f12 >> $i.per5up.txt;done
 paste *per5up.txt > 5up_0.6_paste.txt
 perl {{resr_path}}/stdv.pl 5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > 5up_0.6_0.25.list
