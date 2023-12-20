@@ -33,10 +33,23 @@ def read_databases():
                 prev_gene = tuberculist_df.iloc[index - 1]["GeneID"]
                 igr_key = "%s-%s" % (prev_gene, row["GeneID"])
                 igr[igr_key] = {
-                    "start": gene_infos[prev_gene]["start"] + 1,
+                    "start": gene_infos[prev_gene]["stop"] + 1,
                     "stop": row['Start'] - 1
                 }
                 igr_keys.append(igr_key)
+    """
+    # validate against jigr
+    jigr_df = pandas.read_csv('jigr.tsv', sep='\t', header=None, names=['key', 'start', 'stop'])
+    jigr_map = {}
+    for index, row in jigr_df.iterrows():
+        jigr_map[row['key']] = {
+            'start': row['start'], 'stop': row['stop']
+        }
+    for key, pos1 in jigr_map.items():
+        pos2 = igr[key]
+        if pos1 != pos2:
+            raise Exception("key: %s, pos in Perl %s != Python %s" % (key, str(pos1), str(pos2)))
+    """
 
     # 2. read Codon -> AA mapping
     code = {}
@@ -70,7 +83,6 @@ if __name__ == '__main__':
     snp_df = pandas.read_csv(args.snpfile, sep='\t', header=None,
                              names=["VarscanPos", "Ref", "Alt"])
     for index, row in snp_df.iterrows():
-        k = 0
         for gene_id in gene_ids:
             gene_info = gene_infos[gene_id]
             if is_in_gene(row['VarscanPos'], gene_info):
@@ -78,9 +90,9 @@ if __name__ == '__main__':
                     print("%s\t%s\t%s\t-\t---\t---\t%s\t%s\t%s" %
                           (row["VarscanPos"], row["Ref"], row["Alt"],
                            gene_info['name'], gene_info['description'], gene_info['category']))
-                elif k == 0:
+                else:
                     if gene_info['strand'] == '+':
-                        print("NON-MTB GENE (k==0, +): %s\n" % gene_id);
+                        #print("NON-MTB GENE (+) %s\n" % gene_id);
                         length = gene_info['stop'] - gene_info['start'] + 1
                         seq = genome[gene_info['start'] - 1:(gene_info['start'] -  1) + length]
                         loci = row["VarscanPos"] - gene_info['start'] + 1
@@ -99,7 +111,7 @@ if __name__ == '__main__':
                             wildtype = seq[loci - 2: (loci - 2) + 3]
                             mutation = wildtype[0] + row['Alt'] + wildtype[2]
                     elif gene_info['strand'] == '-':
-                        print("NON-MTB GENE (k==0, -): %s\n" % gene_id);
+                        #print("NON-MTB GENE (-): %s\n" % gene_id);
                         length = gene_info['stop'] - gene_info['start'] + 1
                         seq = genome[gene_info['start'] - 1:(gene_info['start'] -  1) + length]
                         seq = seq[::-1]  # reverse the sequence
@@ -135,64 +147,6 @@ if __name__ == '__main__':
                            codon, code_info, triplets, gene_id, gene_info['name'],
                            gene_info['description'], gene_info['category']))
 
-                if k == 1:
-                    if gene_info['strand'] == '+':
-                        print("NON-MTB GENE (k==1, +): %s\n" % gene_id);
-                        length = gene_info["stop"] - gene_info['start'] + 1
-                        seq = genome[gene_info['start'] - 1: (gene_info['start'] - 1) + length]
-                        loci = row['VarscanPos'] - gene_info['start'] + 1
-                        ct = int(loci / 3)
-                        remain = loci % 3
-                        if remain == 0:
-                            codon = ct
-                            wildtype = seq[loci - 3: (loci - 3) + 3]
-                            mutation = wildtype[0:2] + row['Alt']
-                        elif remain == 1:
-                            codon = ct + 1
-                            wildtype = seq[loci - 1: (loci - 1) + 3]
-                            mutation = row['Alt'] + wildtype[1:3]
-                        elif remain == 2:
-                            codon = ct + 1
-                            wildtype = seq[loci - 2: (loci - 2) + 3]
-                            mutation = wildtype[0] + row['Alt'] + wildtype[2]
-
-                    elif gene_info['strand'] == '-':
-                        print("NON-MTB GENE (k==1, -): %s\n" % gene_id);
-                        length = gene_info['stop'] - gene_info['start'] + 1
-                        seq = genome[gene_info['start'] - 1: (gene_info['start'] - 1) + length]
-                        seq = seq[::-1]  # reverse
-                        loci = gene_info['stop'] - row['VarscanPos'] + 1
-                        ct = int(loci / 3)
-                        remain = loci % 3
-                        if remain == 0:
-                            codon = ct
-                            wildtype = seq[loci - 3: (loci - 3) + 3]
-                            mutation = wildtype[0:2] + row['Alt']
-                        elif remain == 1:
-                            codon = ct + 1
-                            wildtype = seq[loci - 1: (loci - 1) + 3]
-                            mutation = row['Alt'] + wildtype[1:3]
-                        elif remain == 2:
-                            codon = ct + 1
-                            wildtype = seq[loci - 2: (loci - 2) + 3]
-                            mutation = wildtype[0] + row['Alt'] + wildtype[2]
-
-                        # translate bases
-                        wildtype = wildtype.translate(str.maketrans("ATGC", "TACG"))
-                        mutation = mutation.translate(str.maketrans("ATGC", "TACG"))
-                    if code[wildtype] == code[mutation]:
-                        restype = "Synonymous"
-                    else:
-                        restype = "Nonsynonymous"
-
-                    code_info = '%s-%s-%s' % (restype, code[wildtype], code[mutation])
-                    triplets = '%s-%s' % (wildtype, mutation)
-                    print("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s" %
-                          (row["VarscanPos"], row["Ref"], row["Alt"],
-                           codon, code_info, triplets, gene_id, gene_info['name'],
-                           gene_info['description'], gene_info['category']))
-
-                k += 1
             else:
                 #print("not a gene location")
                 pass
