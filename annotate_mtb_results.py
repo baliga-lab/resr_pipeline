@@ -87,8 +87,9 @@ if __name__ == '__main__':
             gene_info = gene_infos[gene_id]
             if is_in_gene(row['VarscanPos'], gene_info):
                 if gene_id.startswith('MTB'):
-                    print("%s\t%s\t%s\t-\t---\t---\t%s\t%s\t%s" %
+                    print("%s\t%s\t%s\t-\t---\t---\t%s\t%s\t%s\t%s" %
                           (row["VarscanPos"], row["Ref"], row["Alt"],
+                           gene_id,
                            gene_info['name'], gene_info['description'], gene_info['category']))
                 else:
                     if gene_info['strand'] == '+':
