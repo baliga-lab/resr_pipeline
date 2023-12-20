@@ -8,26 +8,26 @@ from globalsearch.rnaseq.find_files import find_fastq_files
 DESCRIPTION = "make_fixed_snp_calling"
 
 FIXED_TEMPLATE = """#!/bin/bash
-sickle pe -l 35 -f {{fastq1}} -r {{fastq2}} -t sanger -o {{trimmed1}} -p {{trimmed2}} -s {{trimmedS}}
-bwa aln -R 1 {{fasta_path}} {{trimmed1}} > {{sai1}}
-bwa aln -R 1 {{fasta_path}} {{trimmed2}} > {{sai2}}
-bwa aln -R 1 {{fasta_path}} {{trimmedS}} > {{saiS}}
-bwa sampe -a 1000 -n 1 -N 1 {{fasta_path}} {{sai1}} {{sai2}} {{trimmed1}} {{trimmed2}} > {{paired_sam}}
-bwa samse -n 1 {{fasta_path}} {{saiS}} {{trimmedS}} > {{single_sam}}
-samtools view -bhSt {{fasta_path}}.fai {{paired_sam}} -o {{paired_bam}}
-samtools view -bhSt {{fasta_path}}.fai {{single_sam}} -o {{single_bam}}
-samtools merge {{merged_bam}} {{paired_bam}} {{single_bam}}
-samtools sort {{merged_bam}} -o {{sorted_bam}}
-samtools index {{sorted_bam}}
-samtools mpileup -q 30 -Q 20 -ABOf {{fasta_path}} {{sorted_bam}} > {{pileup_file}}
-java -jar {{varscan_path}} mpileup2snp {{pileup_file}} --min-coverage 3 --min-reads2 2 --min-avg-qual 20 --min-var-freq 0.01 --min-freq-for-hom 0.9 --p-value 99e-02 --strand-filter 1 > {{varscan_file}}
-java -jar {{varscan_path}} mpileup2cns {{pileup_file}} --min-coverage 3 --min-avg-qual 20 --min-var-freq 0.75 --min-reads2 2 --strand-filter 1 > {{cns_file}}
-perl {{resr_script_path}}/PPE_PE_INS_filt.pl {{resr_db_path}}/PPE_INS_loci.list {{varscan_file}} > {{ppe_file}}
-perl {{resr_script_path}}/fixed_format_trans.pl {{ppe_file}} > {{for_file}}
-perl {{resr_script_path}}/fix_extract.pl {{for_file}} > {{fix_file}}
-perl {{resr_script_path}}/unfix_pileup_match.pl {{for_file}} {{pileup_file}} > {{forup_file}}
-cut -f2-4 {{fix_file}} > {{snp_file}}
-python {{resr_script_path}}/annotate_mtb_results.py {{snp_file}} {{varscan_file}} {{resr_db_path}} > {{result_file}}
+sickle pe -l 35 -f {{fastq1}} -r {{fastq2}} -t sanger -o {{fixed_result_path}}/{{trimmed1}} -p {{fixed_result_path}}/{{trimmed2}} -s {{fixed_result_path}}/{{trimmedS}}
+bwa aln -R 1 {{fasta_path}} {{fixed_result_path}}/{{trimmed1}} > {{fixed_result_path}}/{{sai1}}
+bwa aln -R 1 {{fasta_path}} {{fixed_result_path}}/{{trimmed2}} > {{fixed_result_path}}/{{sai2}}
+bwa aln -R 1 {{fasta_path}} {{fixed_result_path}}/{{trimmedS}} > {{fixed_result_path}}/{{saiS}}
+bwa sampe -a 1000 -n 1 -N 1 {{fasta_path}} {{fixed_result_path}}/{{sai1}} {{fixed_result_path}}/{{sai2}} {{fixed_result_path}}/{{trimmed1}} {{fixed_result_path}}/{{trimmed2}} > {{fixed_result_path}}/{{paired_sam}}
+bwa samse -n 1 {{fasta_path}} {{fixed_result_path}}/{{saiS}} {{fixed_result_path}}/{{trimmedS}} > {{fixed_result_path}}/{{single_sam}}
+samtools view -bhSt {{fasta_path}}.fai {{fixed_result_path}}/{{paired_sam}} -o {{fixed_result_path}}/{{paired_bam}}
+samtools view -bhSt {{fasta_path}}.fai {{fixed_result_path}}/{{single_sam}} -o {{fixed_result_path}}/{{single_bam}}
+samtools merge {{fixed_result_path}}/{{merged_bam}} {{fixed_result_path}}/{{paired_bam}} {{fixed_result_path}}/{{single_bam}}
+samtools sort {{fixed_result_path}}/{{merged_bam}} -o {{fixed_result_path}}/{{sorted_bam}}
+samtools index {{fixed_result_path}}/{{sorted_bam}}
+samtools mpileup -q 30 -Q 20 -ABOf {{fasta_path}} {{fixed_result_path}}/{{sorted_bam}} > {{fixed_result_path}}/{{pileup_file}}
+java -jar {{varscan_path}} mpileup2snp {{fixed_result_path}}/{{pileup_file}} --min-coverage 3 --min-reads2 2 --min-avg-qual 20 --min-var-freq 0.01 --min-freq-for-hom 0.9 --p-value 99e-02 --strand-filter 1 > {{fixed_result_path}}/{{varscan_file}}
+java -jar {{varscan_path}} mpileup2cns {{fixed_result_path}}/{{pileup_file}} --min-coverage 3 --min-avg-qual 20 --min-var-freq 0.75 --min-reads2 2 --strand-filter 1 > {{fixed_result_path}}/{{cns_file}}
+perl {{resr_script_path}}/PPE_PE_INS_filt.pl {{resr_db_path}}/PPE_INS_loci.list {{fixed_result_path}}/{{varscan_file}} > {{fixed_result_path}}/{{ppe_file}}
+perl {{resr_script_path}}/fixed_format_trans.pl {{fixed_result_path}}/{{ppe_file}} > {{fixed_result_path}}/{{for_file}}
+perl {{resr_script_path}}/fix_extract.pl {{fixed_result_path}}/{{for_file}} > {{fixed_result_path}}/{{fix_file}}
+perl {{resr_script_path}}/unfix_pileup_match.pl {{fixed_result_path}}/{{for_file}} {{fixed_result_path}}/{{pileup_file}} > {{fixed_result_path}}/{{forup_file}}
+cut -f2-4 {{fixed_result_path}}/{{fix_file}} > {{fixed_result_path}}/{{snp_file}}
+python {{resr_script_path}}/annotate_mtb_results.py {{fixed_result_path}}/{{snp_file}} {{fixed_result_path}}/{{varscan_file}} {{resr_db_path}} > {{fixed_result_path}}/{{result_file}}
 """
 
 UNFIXED_TEMPLATE="""#!/bin/bash
@@ -96,6 +96,8 @@ if __name__ == '__main__':
                                      description=DESCRIPTION)
     parser.add_argument('--fastq_pattern', default="*_{{readnum}}.fastq", help="FASTQ pattern")
     parser.add_argument('input_path', help="input path to sample")
+    parser.add_argument('result_path', help="result path")
+
     args = parser.parse_args()
     fastq_files = find_fastq_files(args.input_path, [args.fastq_pattern])
     if len(fastq_files) == 0:
@@ -115,11 +117,20 @@ if __name__ == '__main__':
     varscan_path = "/jarfiles/VarScan.v2.4.0.jar"
 
     fixed_templ = jinja2.Template(FIXED_TEMPLATE)
+    fixed_result_path = os.path.join(args.result_path, "fixed")
+    unfixed_result_path = os.path.join(args.result_path, "unfixed")
+    if not os.path.exists(args.result_path):
+        os.makedirs(args.result_path)
+        os.makedirs(unfixed_result_path)
+        os.makedirs(fixed_result_path)
+
     config = {
         "fasta_path": fasta_path,
         "resr_script_path": resr_script_path,
         "resr_db_path": resr_db_path,
         "varscan_path": varscan_path,
+        "fixed_result_path": fixed_result_path,
+        "unfixed_result_path": unfixed_result_path,
         "fastq1": fq1, "fastq2": fq2,
         "trimmed1": "%s_trimmed.fq" % stem1, "trimmed2": "%s_trimmed.fq" % stem2,
         "trimmedS": "%s_trimmedS.fq" % stem0,
