@@ -22,11 +22,12 @@ samtools index {{sorted_bam}}
 samtools mpileup -q 30 -Q 20 -ABOf {{fasta_path}} {{sorted_bam}} > {{pileup_file}}
 java -jar {{varscan_path}} mpileup2snp {{pileup_file}} --min-coverage 3 --min-reads2 2 --min-avg-qual 20 --min-var-freq 0.01 --min-freq-for-hom 0.9 --p-value 99e-02 --strand-filter 1 > {{varscan_file}}
 java -jar {{varscan_path}} mpileup2cns {{pileup_file}} --min-coverage 3 --min-avg-qual 20 --min-var-freq 0.75 --min-reads2 2 --strand-filter 1 > {{cns_file}}
-perl {{resr_path}}/PPE_PE_INS_filt.pl {{resr_path}}/PPE_INS_loci.list {{varscan_file}} > {{ppe_file}}
-perl {{resr_path}}/format_trans.pl {{ppe_file}} > {{for_file}}
-perl {{resr_path}}/fix_extract.pl {{for_file}} > {{fix_file}}
-perl {{resr_path}}/unfix_pileup_match.pl {{for_file}} {{pileup_file}} > {{forup_file}}
+perl {{resr_script_path}}/PPE_PE_INS_filt.pl {{resr_db_path}}/PPE_INS_loci.list {{varscan_file}} > {{ppe_file}}
+perl {{resr_script_path}}/fixed_format_trans.pl {{ppe_file}} > {{for_file}}
+perl {{resr_script_path}}/fix_extract.pl {{for_file}} > {{fix_file}}
+perl {{resr_script_path}}/unfix_pileup_match.pl {{for_file}} {{pileup_file}} > {{forup_file}}
 cut -f2-4 {{fix_file}} > {{snp_file}}
+python {{resr_script_path}}/annotate_mtb_results.py {{snp_file}} {{varscan_file}} {{resr_db_path}} > {{result_file}}
 """
 
 UNFIXED_TEMPLATE="""#!/bin/bash
@@ -51,42 +52,43 @@ java -jar {{varscan_path}} mpileup2snp {{pileup_file}} --min-coverage 3 --min-re
 java -jar {{varscan_path}} mpileup2cns {{pileup_file}} --min-coverage 3 --min-avg-qual 20 --min-var-freq 0.75 --min-reads2 2 --strand-filter 1 > {{cns_file}}
 
 #exclude regions belonging to PPE/PE and insertion sequences, and also exclude the regions that were recently marked as error-prone (Marin, Bioinformatics, 2022)
-perl {{resr_path}}/PE_IS_filt.pl {{resr_path}}/Excluded_loci_mask.list {{varscan_file}} > {{ppe_file}}
-perl {{resr_path}}/format_trans.pl {{ppe_file}} > {{for_file}}
+perl {{resr_script_path}}/PE_IS_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{varscan_file}} > {{ppe_file}}
+perl {{resr_script_path}}/unfixed_format_trans.pl {{ppe_file}} > {{for_file}}
 
 #extract read location from mpileup file (where does a mutation allele locate on a seqeuncing read), for further filtering based on tail distribution
-perl {{resr_path}}/mix_pileup_merge.pl {{for_file}} {{pileup_file}} > {{forup_file}}
+perl {{resr_script_path}}/mix_pileup_merge.pl {{for_file}} {{pileup_file}} > {{forup_file}}
 
 #average sequencing depth, only include samples with genome coverage rate >0.9 and sequencing depth >20X
 #sed 's/:/\\t/g' {{cns_file}}|awk '{if ($6 >= 3){n++;sum+=$6}} END {print \"\\t\",n/4411532,\"\\t\",sum/n}' > {{dep_file}}
-python3 {{resr_path}}/avg_sequencing_depth.py {{cns_file}} > {{dep_file}}
+python3 {{resr_script_path}}/avg_sequencing_depth.py {{cns_file}} > {{dep_file}}
 
 #extract unfixed SNPs from forup files, this will create two files: "markdisc" and "markkept"; the suspected false positives(such as mutations with tail region enrichment) will be moved to markdisc file
-perl {{resr_path}}/mix_extract_0.95.pl {{forup_file}} > {{mix_file}}
-perl {{resr_path}}/forup_format.pl {{mix_file}} > {{mixfor_file}}
-perl {{resr_path}}/info_mark.pl {{mixfor_file}} > {{mixmark_file}}
-perl {{resr_path}}/redepin_filt.pl {{resr_path}}/Excluded_loci_mask.list {{dep_file}} {{mixmark_file}}
+perl {{resr_script_path}}/mix_extract_0.95.pl {{forup_file}} > {{mix_file}}
+perl {{resr_script_path}}/forup_format.pl {{mix_file}} > {{mixfor_file}}
+perl {{resr_script_path}}/info_mark.pl {{mixfor_file}} > {{mixmark_file}}
+perl {{resr_script_path}}/redepin_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{dep_file}} {{mixmark_file}}
 
 #filter list of highly repeated mutations with similar mutational frequency
 #for those unfixed mutations that arise >=5 times in the 50K isolates, further check their reliability based on 1) the ratio in "markkept"; 2) the distribution of the mutational frequency.
 cat *mixmarkkept > all_KEPT.txt
-perl {{resr_path}}/loci_freq_count.pl all_KEPT.txt > kept_repeat.txt
+perl {{resr_script_path}}/loci_freq_count.pl all_KEPT.txt > kept_repeat.txt
 cat *mixmark > all_MIX.txt
-perl {{resr_path}}/loci_freq_count.pl all_MIX.txt > mix_repeat.txt
-perl {{resr_path}}/repeat_number_merge.pl mix_repeat.txt kept_repeat.txt > merge_kept_mix.txt
-perl {{resr_path}}/ratio.pl merge_kept_mix.txt > merge_kept_mix_ratio.txt
+perl {{resr_script_path}}/loci_freq_count.pl all_MIX.txt > mix_repeat.txt
+perl {{resr_script_path}}/repeat_number_merge.pl mix_repeat.txt kept_repeat.txt > merge_kept_mix.txt
+perl {{resr_script_path}}/ratio.pl merge_kept_mix.txt > merge_kept_mix_ratio.txt
 # Comparing to 5 can lead to 0 *per5up.txt files
 awk '$4>=5' merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > $i.per5up.txt;grep -w $i all_KEPT.txt|cut -f12 >> $i.per5up.txt;done
 paste *per5up.txt > 5up_0.6_paste.txt
-perl {{resr_path}}/stdv.pl 5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > 5up_0.6_0.25.list
-perl {{resr_path}}/freq_extract.pl 5up_0.6_0.25.list 5up_0.6_paste.txt > 5up_0.6_0.25.txt
+perl {{resr_script_path}}/stdv.pl 5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > 5up_0.6_0.25.list
+perl {{resr_script_path}}/freq_extract.pl 5up_0.6_0.25.list 5up_0.6_paste.txt > 5up_0.6_0.25.txt
 awk '$4>=5' merge_kept_mix_ratio.txt|cut -f1 > 5up.list
-perl {{resr_path}}/repeat_loci.pl 5up_0.6_0.25.list 5up.list > 5up_remove_loc.list
-perl {{resr_path}}/repeatloci_filter.pl 5up_remove_loc.list {{markkept_file}} > {{keptfilt_file}}
+perl {{resr_script_path}}/repeat_loci.pl 5up_0.6_0.25.list 5up.list > 5up_remove_loc.list
+perl {{resr_script_path}}/repeatloci_filter.pl 5up_remove_loc.list {{markkept_file}} > {{keptfilt_file}}
 
 #annotation of unfixed SNPs
 cut -f9-11 {{keptfilt_file}} > {{keptsnp_file}}
-perl {{resr_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{keptsnp_file}} > {{keptanofilt_file}}
+#perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{keptsnp_file}} > {{keptanofilt_file}}
+python {{resr_script_path}}/annotate_mtb_results.py {{keptsnp_file}} {{varscan_file}} {{resr_db_path}} > {{result_file}}
 """
 
 if __name__ == '__main__':
@@ -108,12 +110,16 @@ if __name__ == '__main__':
     # depending on the readnum format
     stem0 = stem1.replace("_1", "")
     fasta_path = "/bwa_pipeline/reference/MTB_ancestor_reference.fasta"
-    resr_path = "/resR_scripts"
+    resr_script_path = "scripts"
+    resr_db_path = "databases"
     varscan_path = "/jarfiles/VarScan.v2.4.0.jar"
 
     fixed_templ = jinja2.Template(FIXED_TEMPLATE)
     config = {
-        "fasta_path": fasta_path, "resr_path": resr_path, "varscan_path": varscan_path,
+        "fasta_path": fasta_path,
+        "resr_script_path": resr_script_path,
+        "resr_db_path": resr_db_path,
+        "varscan_path": varscan_path,
         "fastq1": fq1, "fastq2": fq2,
         "trimmed1": "%s_trimmed.fq" % stem1, "trimmed2": "%s_trimmed.fq" % stem2,
         "trimmedS": "%s_trimmedS.fq" % stem0,
@@ -129,7 +135,8 @@ if __name__ == '__main__':
         "mixfor_file": "%s.mixfor" % stem0, "mixmark_file": "%s.mixmark" % stem0,
         "markkept_file": "%s.mixmarkkept" % stem0,
         "keptfilt_file": "%s.keptfilt" % stem0, "keptsnp_file": "%s.keptsnp" % stem0,
-        "keptanofilt_file": "%s.keptanofilt" % stem0
+        "keptanofilt_file": "%s.keptanofilt" % stem0,
+        "result_file": "%s.finalresult" % stem0
     }
     fixed_out = fixed_templ.render(config)
     with open("fixed_snp_calling.sh", "w") as outfile:

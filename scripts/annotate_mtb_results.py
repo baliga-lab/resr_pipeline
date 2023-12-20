@@ -2,13 +2,15 @@
 
 import pandas
 import argparse
+import os
 
 MTB_GENOME_SIZE = 4411532
 
-def read_databases():
+def read_databases(dbpath):
     # 1. read Tuberculist information
     header = ['GeneID', 'GeneName', 'Strand', 'Start', 'Stop', 'Description', 'Category']
-    tuberculist_df = pandas.read_csv('2_Tuberculist_new_20150307', sep='\t',
+    tuberculist_df = pandas.read_csv(os.path.join(dbpath, '2_Tuberculist_new_20150307'),
+                                     sep='\t',
                                      header=None, names=header)
     gene_infos = {}
     gene_ids = []
@@ -37,30 +39,18 @@ def read_databases():
                     "stop": row['Start'] - 1
                 }
                 igr_keys.append(igr_key)
-    """
-    # validate against jigr
-    jigr_df = pandas.read_csv('jigr.tsv', sep='\t', header=None, names=['key', 'start', 'stop'])
-    jigr_map = {}
-    for index, row in jigr_df.iterrows():
-        jigr_map[row['key']] = {
-            'start': row['start'], 'stop': row['stop']
-        }
-    for key, pos1 in jigr_map.items():
-        pos2 = igr[key]
-        if pos1 != pos2:
-            raise Exception("key: %s, pos in Perl %s != Python %s" % (key, str(pos1), str(pos2)))
-    """
 
     # 2. read Codon -> AA mapping
     code = {}
-    genetic_codes_df = pandas.read_csv('3_genetic_codes', sep='\t',
+    genetic_codes_df = pandas.read_csv(os.path.join(dbpath, '3_genetic_codes'),
+                                       sep='\t',
                                        header=None, names=['Codon', 'Result'])
     for index, row in genetic_codes_df.iterrows():
         code[row['Codon']] = row['Result']
 
     # 3. Read genome
     genome = ""
-    with open('4_mtbc_sequence.fasta') as infile:
+    with open(os.path.join(dbpath, '4_mtbc_sequence.fasta')) as infile:
         for line in infile:
             if not line.startswith(">"):
                 genome += line.strip()
@@ -78,6 +68,7 @@ if __name__ == '__main__':
                                      description=DESCRIPTION)
     parser.add_argument('snpfile', help="SNP result file")
     parser.add_argument('varscan', help="VarScan result file")
+    parser.add_argument('dbpath', help="path for database files")
     args = parser.parse_args()
 
     freq_map = {}
@@ -88,7 +79,7 @@ if __name__ == '__main__':
         special = row["Cons:Cov:Reads1:Reads2:Freq:P-value.1"]
         freq_map[pos] = special.split(":")[4]
 
-    gene_ids, gene_infos, code, genome, igr_keys, igr = read_databases()
+    gene_ids, gene_infos, code, genome, igr_keys, igr = read_databases(args.dbpath)
     snp_df = pandas.read_csv(args.snpfile, sep='\t', header=None,
                              names=["VarscanPos", "Ref", "Alt"])
     header = ["VarscanPosition", "Ref", "Alt", "CodonPos", "Type_WTAA_MutAA",
