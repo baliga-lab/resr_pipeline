@@ -11,6 +11,7 @@ and uniform results.
 
   * pandas
   * globalsearch
+  * jinja2
   * all the dependencies of resR project
     * VarScan 2.4.0
     * samtools
@@ -21,4 +22,8 @@ and uniform results.
 
 ```
 ./make_snp_calling.py <path to FASTQ files>
-``` 
+```
+
+## TODO:
+
+  * avg_sequencing_depth.py: make threshold configurable

@@ -32,63 +32,64 @@ python {{resr_script_path}}/annotate_mtb_results.py {{fixed_result_path}}/{{snp_
 
 UNFIXED_TEMPLATE="""#!/bin/bash
 
-sickle pe -l 35 -f {{fastq1}} -r {{fastq2}} -t sanger -o {{trimmed1}} -p {{trimmed2}} -s {{trimmedS}}
-bwa aln -R 1 {{fasta_path}} {{trimmed1}} > {{sai1}}
-bwa aln -R 1 {{fasta_path}} {{trimmed2}} > {{sai2}}
-bwa aln -R 1 {{fasta_path}} {{trimmedS}} > {{saiS}}
-bwa sampe -a 1000 -n 1 -N 1 {{fasta_path}} {{sai1}} {{sai2}} {{trimmed1}} {{trimmed2}} > {{paired_sam}}
-bwa samse -n 1 {{fasta_path}} {{saiS}} {{trimmedS}} > {{single_sam}}
-samtools view -bhSt {{fasta_path}}.fai {{paired_sam}} -o {{paired_bam}}
-samtools view -bhSt {{fasta_path}}.fai {{single_sam}} -o {{single_bam}}
-samtools merge {{merged_bam}} {{paired_bam}} {{single_bam}}
-samtools sort {{merged_bam}} -o {{sorted_bam}}
-samtools index {{sorted_bam}}
+sickle pe -l 35 -f {{fastq1}} -r {{fastq2}} -t sanger -o {{unfixed_result_path}}/{{trimmed1}} -p {{unfixed_result_path}}/{{trimmed2}} -s {{unfixed_result_path}}/{{trimmedS}}
+bwa aln -R 1 {{fasta_path}} {{unfixed_result_path}}/{{trimmed1}} > {{unfixed_result_path}}/{{sai1}}
+bwa aln -R 1 {{fasta_path}} {{unfixed_result_path}}/{{trimmed2}} > {{unfixed_result_path}}/{{sai2}}
+bwa aln -R 1 {{fasta_path}} {{unfixed_result_path}}/{{trimmedS}} > {{unfixed_result_path}}/{{saiS}}
+bwa sampe -a 1000 -n 1 -N 1 {{fasta_path}} {{unfixed_result_path}}/{{sai1}} {{unfixed_result_path}}/{{sai2}} {{unfixed_result_path}}/{{trimmed1}} {{unfixed_result_path}}/{{trimmed2}} > {{unfixed_result_path}}/{{paired_sam}}
+bwa samse -n 1 {{fasta_path}} {{unfixed_result_path}}/{{saiS}} {{unfixed_result_path}}/{{trimmedS}} > {{unfixed_result_path}}/{{single_sam}}
+samtools view -bhSt {{fasta_path}}.fai {{unfixed_result_path}}/{{paired_sam}} -o {{unfixed_result_path}}/{{paired_bam}}
+samtools view -bhSt {{fasta_path}}.fai {{unfixed_result_path}}/{{single_sam}} -o {{unfixed_result_path}}/{{single_bam}}
+samtools merge {{unfixed_result_path}}/{{merged_bam}} {{unfixed_result_path}}/{{paired_bam}} {{unfixed_result_path}}/{{single_bam}}
+samtools sort {{unfixed_result_path}}/{{merged_bam}} -o {{unfixed_result_path}}/{{sorted_bam}}
+samtools index {{unfixed_result_path}}/{{sorted_bam}}
 
 #generate mpileup file for each sample
-samtools mpileup -q 30 -Q 20 -ABOf {{fasta_path}} {{sorted_bam}} > {{pileup_file}}
+samtools mpileup -q 30 -Q 20 -ABOf {{fasta_path}} {{unfixed_result_path}}/{{sorted_bam}} > {{unfixed_result_path}}/{{pileup_file}}
 
 #using varscan for SNP calling
-java -jar {{varscan_path}} mpileup2snp {{pileup_file}} --min-coverage 3 --min-reads2 2 --min-avg-qual 20 --min-var-freq 0.01 --min-freq-for-hom 0.9 --p-value 99e-02 --strand-filter 1 > {{varscan_file}}
-java -jar {{varscan_path}} mpileup2cns {{pileup_file}} --min-coverage 3 --min-avg-qual 20 --min-var-freq 0.75 --min-reads2 2 --strand-filter 1 > {{cns_file}}
+java -jar {{varscan_path}} mpileup2snp {{unfixed_result_path}}/{{pileup_file}} --min-coverage 3 --min-reads2 2 --min-avg-qual 20 --min-var-freq 0.01 --min-freq-for-hom 0.9 --p-value 99e-02 --strand-filter 1 > {{unfixed_result_path}}/{{varscan_file}}
+java -jar {{varscan_path}} mpileup2cns {{unfixed_result_path}}/{{pileup_file}} --min-coverage 3 --min-avg-qual 20 --min-var-freq 0.75 --min-reads2 2 --strand-filter 1 > {{unfixed_result_path}}/{{cns_file}}
 
 #exclude regions belonging to PPE/PE and insertion sequences, and also exclude the regions that were recently marked as error-prone (Marin, Bioinformatics, 2022)
-perl {{resr_script_path}}/PE_IS_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{varscan_file}} > {{ppe_file}}
-perl {{resr_script_path}}/unfixed_format_trans.pl {{ppe_file}} > {{for_file}}
+perl {{resr_script_path}}/PE_IS_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{varscan_file}} > {{unfixed_result_path}}/{{ppe_file}}
+perl {{resr_script_path}}/unfixed_format_trans.pl {{unfixed_result_path}}/{{ppe_file}} > {{unfixed_result_path}}/{{for_file}}
 
 #extract read location from mpileup file (where does a mutation allele locate on a seqeuncing read), for further filtering based on tail distribution
-perl {{resr_script_path}}/mix_pileup_merge.pl {{for_file}} {{pileup_file}} > {{forup_file}}
+perl {{resr_script_path}}/mix_pileup_merge.pl {{unfixed_result_path}}/{{for_file}} {{unfixed_result_path}}/{{pileup_file}} > {{unfixed_result_path}}/{{forup_file}}
 
 #average sequencing depth, only include samples with genome coverage rate >0.9 and sequencing depth >20X
+# the python script has the same effect as the sed/awk line, but is easier to understand
 #sed 's/:/\\t/g' {{cns_file}}|awk '{if ($6 >= 3){n++;sum+=$6}} END {print \"\\t\",n/4411532,\"\\t\",sum/n}' > {{dep_file}}
-python3 {{resr_script_path}}/avg_sequencing_depth.py {{cns_file}} > {{dep_file}}
+python3 {{resr_script_path}}/avg_sequencing_depth.py {{unfixed_result_path}}/{{cns_file}} > {{unfixed_result_path}}/{{dep_file}}
 
 #extract unfixed SNPs from forup files, this will create two files: "markdisc" and "markkept"; the suspected false positives(such as mutations with tail region enrichment) will be moved to markdisc file
-perl {{resr_script_path}}/mix_extract_0.95.pl {{forup_file}} > {{mix_file}}
-perl {{resr_script_path}}/forup_format.pl {{mix_file}} > {{mixfor_file}}
-perl {{resr_script_path}}/info_mark.pl {{mixfor_file}} > {{mixmark_file}}
-perl {{resr_script_path}}/redepin_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{dep_file}} {{mixmark_file}}
+perl {{resr_script_path}}/mix_extract_0.95.pl {{unfixed_result_path}}/{{forup_file}} > {{unfixed_result_path}}/{{mix_file}}
+perl {{resr_script_path}}/forup_format.pl {{unfixed_result_path}}/{{mix_file}} > {{unfixed_result_path}}/{{mixfor_file}}
+perl {{resr_script_path}}/info_mark.pl {{unfixed_result_path}}/{{mixfor_file}} > {{unfixed_result_path}}/{{mixmark_file}}
+perl {{resr_script_path}}/redepin_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{dep_file}} {{unfixed_result_path}}/{{mixmark_file}}
 
 #filter list of highly repeated mutations with similar mutational frequency
 #for those unfixed mutations that arise >=5 times in the 50K isolates, further check their reliability based on 1) the ratio in "markkept"; 2) the distribution of the mutational frequency.
-cat *mixmarkkept > all_KEPT.txt
-perl {{resr_script_path}}/loci_freq_count.pl all_KEPT.txt > kept_repeat.txt
-cat *mixmark > all_MIX.txt
-perl {{resr_script_path}}/loci_freq_count.pl all_MIX.txt > mix_repeat.txt
-perl {{resr_script_path}}/repeat_number_merge.pl mix_repeat.txt kept_repeat.txt > merge_kept_mix.txt
-perl {{resr_script_path}}/ratio.pl merge_kept_mix.txt > merge_kept_mix_ratio.txt
-# Comparing to 5 can lead to 0 *per5up.txt files
-awk '$4>=5' merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > $i.per5up.txt;grep -w $i all_KEPT.txt|cut -f12 >> $i.per5up.txt;done
-paste *per5up.txt > 5up_0.6_paste.txt
-perl {{resr_script_path}}/stdv.pl 5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > 5up_0.6_0.25.list
-perl {{resr_script_path}}/freq_extract.pl 5up_0.6_0.25.list 5up_0.6_paste.txt > 5up_0.6_0.25.txt
-awk '$4>=5' merge_kept_mix_ratio.txt|cut -f1 > 5up.list
-perl {{resr_script_path}}/repeat_loci.pl 5up_0.6_0.25.list 5up.list > 5up_remove_loc.list
-perl {{resr_script_path}}/repeatloci_filter.pl 5up_remove_loc.list {{markkept_file}} > {{keptfilt_file}}
+cat {{unfixed_result_path}}/*mixmarkkept > {{unfixed_result_path}}/all_KEPT.txt
+perl {{resr_script_path}}/loci_freq_count.pl {{unfixed_result_path}}/all_KEPT.txt > {{unfixed_result_path}}/kept_repeat.txt
+cat {{unfixed_result_path}}/*mixmark > {{unfixed_result_path}}/all_MIX.txt
+perl {{resr_script_path}}/loci_freq_count.pl {{unfixed_result_path}}/all_MIX.txt > {{unfixed_result_path}}/mix_repeat.txt
+perl {{resr_script_path}}/repeat_number_merge.pl {{unfixed_result_path}}/mix_repeat.txt {{unfixed_result_path}}/kept_repeat.txt > {{unfixed_result_path}}/merge_kept_mix.txt
+perl {{resr_script_path}}/ratio.pl {{unfixed_result_path}}/merge_kept_mix.txt > {{unfixed_result_path}}/merge_kept_mix_ratio.txt
+# WW: Comparing to 5 can lead to 0 *per5up.txt files !!!
+awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
+paste {{unfixed_result_path}}/*per5up.txt > {{unfixed_result_path}}/5up_0.6_paste.txt
+perl {{resr_script_path}}/stdv.pl {{unfixed_result_path}}/5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > {{unfixed_result_path}}/5up_0.6_0.25.list
+perl {{resr_script_path}}/freq_extract.pl {{unfixed_result_path}}/5up_0.6_0.25.list {{unfixed_result_path}}/5up_0.6_paste.txt > {{unfixed_result_path}}/5up_0.6_0.25.txt
+awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt|cut -f1 > {{unfixed_result_path}}/5up.list
+perl {{resr_script_path}}/repeat_loci.pl {{unfixed_result_path}}/5up_0.6_0.25.list {{unfixed_result_path}}/5up.list > {{unfixed_result_path}}/5up_remove_loc.list
+perl {{resr_script_path}}/repeatloci_filter.pl {{unfixed_result_path}}/5up_remove_loc.list {{unfixed_result_path}}/{{markkept_file}} > {{unfixed_result_path}}/{{keptfilt_file}}
 
 #annotation of unfixed SNPs
-cut -f9-11 {{keptfilt_file}} > {{keptsnp_file}}
+cut -f9-11 {{unfixed_result_path}}/{{keptfilt_file}} > {{unfixed_result_path}}/{{keptsnp_file}}
 #perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{keptsnp_file}} > {{keptanofilt_file}}
-python {{resr_script_path}}/annotate_mtb_results.py {{keptsnp_file}} {{varscan_file}} {{resr_db_path}} > {{result_file}}
+python {{resr_script_path}}/annotate_mtb_results.py {{unfixed_result_path}}/{{keptsnp_file}} {{unfixed_result_path}}/{{varscan_file}} {{resr_db_path}} > {{unfixed_result_path}}/{{result_file}}
 """
 
 if __name__ == '__main__':
