@@ -3,6 +3,8 @@
 import pandas
 import argparse
 
+MTB_GENOME_SIZE = 4411532
+
 def read_databases():
     # 1. read Tuberculist information
     header = ['GeneID', 'GeneName', 'Strand', 'Start', 'Stop', 'Description', 'Category']
@@ -78,10 +80,10 @@ if __name__ == '__main__':
                            gene_info['name'], gene_info['description'], gene_info['category']))
                 elif k == 0:
                     if gene_info['strand'] == '+':
+                        print("NON-MTB GENE (k==0, +): %s\n" % gene_id);
                         length = gene_info['stop'] - gene_info['start'] + 1
                         seq = genome[gene_info['start'] - 1:(gene_info['start'] -  1) + length]
                         loci = row["VarscanPos"] - gene_info['start'] + 1
-                        #print("loci: %d" % loci)
                         ct = int(loci / 3)
                         remain = loci % 3
                         if remain == 0:
@@ -91,17 +93,41 @@ if __name__ == '__main__':
                         elif remain == 1:
                             codon = ct + 1
                             wildtype = seq[loci - 1: (loci - 1) + 3]
-                            mutation = row['Alt'] + wildtype[1: 1 + 2]
+                            mutation = row['Alt'] + wildtype[1:3]
                         elif remain == 2:
                             codon = ct + 1
                             wildtype = seq[loci - 2: (loci - 2) + 3]
                             mutation = wildtype[0] + row['Alt'] + wildtype[2]
                     elif gene_info['strand'] == '-':
-                        pass
+                        print("NON-MTB GENE (k==0, -): %s\n" % gene_id);
+                        length = gene_info['stop'] - gene_info['start'] + 1
+                        seq = genome[gene_info['start'] - 1:(gene_info['start'] -  1) + length]
+                        seq = seq[::-1]  # reverse the sequence
+                        loci = gene_info['stop'] - row['VarscanPos'] + 1
+                        ct = int(loci / 3)
+                        remain = loci % 3
+                        if remain == 0:
+                            codon = ct
+                            wildtype = seq[loci - 3: (loci - 3) + 3]
+                            mutation = wildtype[0:2] + row['Alt']
+                        elif remain == 1:
+                            codon = ct + 1
+                            wildtype = seq[loci - 1: (loci - 1) + 3]
+                            mutation = row['Alt'] + wildtype[1:3]
+                        elif remain == 2:
+                            codon = ct + 1
+                            wildtype = seq[loci - 2: (loci - 2) + 3]
+                            mutation = wildtype[0] + row['Alt'] + wildtype[2]
+
+                        # translate bases
+                        wildtype = wildtype.translate(str.maketrans("ATGC", "TACG"))
+                        mutation = mutation.translate(str.maketrans("ATGC", "TACG"))
+
                     if code[wildtype] == code[mutation]:
                         restype = "Synonymous"
                     else:
                         restype = "Nonsynonymous"
+
                     code_info = '%s-%s-%s' % (restype, code[wildtype], code[mutation])
                     triplets = '%s-%s' % (wildtype, mutation)
                     print("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s" %
@@ -110,7 +136,62 @@ if __name__ == '__main__':
                            gene_info['description'], gene_info['category']))
 
                 if k == 1:
-                    pass
+                    if gene_info['strand'] == '+':
+                        print("NON-MTB GENE (k==1, +): %s\n" % gene_id);
+                        length = gene_info["stop"] - gene_info['start'] + 1
+                        seq = genome[gene_info['start'] - 1: (gene_info['start'] - 1) + length]
+                        loci = row['VarscanPos'] - gene_info['start'] + 1
+                        ct = int(loci / 3)
+                        remain = loci % 3
+                        if remain == 0:
+                            codon = ct
+                            wildtype = seq[loci - 3: (loci - 3) + 3]
+                            mutation = wildtype[0:2] + row['Alt']
+                        elif remain == 1:
+                            codon = ct + 1
+                            wildtype = seq[loci - 1: (loci - 1) + 3]
+                            mutation = row['Alt'] + wildtype[1:3]
+                        elif remain == 2:
+                            codon = ct + 1
+                            wildtype = seq[loci - 2: (loci - 2) + 3]
+                            mutation = wildtype[0] + row['Alt'] + wildtype[2]
+
+                    elif gene_info['strand'] == '-':
+                        print("NON-MTB GENE (k==1, -): %s\n" % gene_id);
+                        length = gene_info['stop'] - gene_info['start'] + 1
+                        seq = genome[gene_info['start'] - 1: (gene_info['start'] - 1) + length]
+                        seq = seq[::-1]  # reverse
+                        loci = gene_info['stop'] - row['VarscanPos'] + 1
+                        ct = int(loci / 3)
+                        remain = loci % 3
+                        if remain == 0:
+                            codon = ct
+                            wildtype = seq[loci - 3: (loci - 3) + 3]
+                            mutation = wildtype[0:2] + row['Alt']
+                        elif remain == 1:
+                            codon = ct + 1
+                            wildtype = seq[loci - 1: (loci - 1) + 3]
+                            mutation = row['Alt'] + wildtype[1:3]
+                        elif remain == 2:
+                            codon = ct + 1
+                            wildtype = seq[loci - 2: (loci - 2) + 3]
+                            mutation = wildtype[0] + row['Alt'] + wildtype[2]
+
+                        # translate bases
+                        wildtype = wildtype.translate(str.maketrans("ATGC", "TACG"))
+                        mutation = mutation.translate(str.maketrans("ATGC", "TACG"))
+                    if code[wildtype] == code[mutation]:
+                        restype = "Synonymous"
+                    else:
+                        restype = "Nonsynonymous"
+
+                    code_info = '%s-%s-%s' % (restype, code[wildtype], code[mutation])
+                    triplets = '%s-%s' % (wildtype, mutation)
+                    print("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s" %
+                          (row["VarscanPos"], row["Ref"], row["Alt"],
+                           codon, code_info, triplets, gene_id, gene_info['name'],
+                           gene_info['description'], gene_info['category']))
+
                 k += 1
             else:
                 #print("not a gene location")
@@ -123,7 +204,7 @@ if __name__ == '__main__':
                 gene1, gene2 = j.split('-')
                 if gene1 == 'Rv3924c' and gene2 == 'Rv0001':
                     left = row['VarscanPos'] - j_info['start']
-                    right = 4411532 - row['VarscanPos'];
+                    right = MTB_GENOME_SIZE - row['VarscanPos'];
                 else:
                     left = row['VarscanPos'] - gene_infos[gene1]['stop']
                     right= gene_infos[gene2]['start'] - row['VarscanPos']
