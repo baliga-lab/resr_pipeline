@@ -3,7 +3,7 @@ use warnings;
 
 while(<>){
 chomp;
-if($_=~m/^Chrom/){
+if($_=~m/^Chrom\t/){
 }else{
 @a=split "\t",$_;
 print "$a[0]\t$a[1]\t$a[2]\t$a[3]\t";

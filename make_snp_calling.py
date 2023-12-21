@@ -90,6 +90,7 @@ perl {{resr_script_path}}/repeatloci_filter.pl {{unfixed_result_path}}/5up_remov
 cut -f9-11 {{unfixed_result_path}}/{{keptfilt_file}} > {{unfixed_result_path}}/{{keptsnp_file}}
 #perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{keptsnp_file}} > {{keptanofilt_file}}
 python {{resr_script_path}}/annotate_mtb_results.py {{unfixed_result_path}}/{{keptsnp_file}} {{unfixed_result_path}}/{{varscan_file}} {{resr_db_path}} > {{unfixed_result_path}}/{{result_file}}
+tb-profiler profile --bam {{unfixed_result_path}}/ERR1023302.sorted.bam --dir {{tbprofiler_result_path}} --prefix {{sample_id}} --csv
 """
 
 if __name__ == '__main__':
@@ -120,18 +121,22 @@ if __name__ == '__main__':
     fixed_templ = jinja2.Template(FIXED_TEMPLATE)
     fixed_result_path = os.path.join(args.result_path, "fixed")
     unfixed_result_path = os.path.join(args.result_path, "unfixed")
+    tbprofiler_result_path = os.path.join(args.result_path, "tbprofiler")
+
     if not os.path.exists(args.result_path):
         os.makedirs(args.result_path)
         os.makedirs(unfixed_result_path)
         os.makedirs(fixed_result_path)
 
     config = {
+        "sample_id": stem0,
         "fasta_path": fasta_path,
         "resr_script_path": resr_script_path,
         "resr_db_path": resr_db_path,
         "varscan_path": varscan_path,
         "fixed_result_path": fixed_result_path,
         "unfixed_result_path": unfixed_result_path,
+        "tbprofiler_result_path": tbprofiler_result_path,
         "fastq1": fq1, "fastq2": fq2,
         "trimmed1": "%s_trimmed.fq" % stem1, "trimmed2": "%s_trimmed.fq" % stem2,
         "trimmedS": "%s_trimmedS.fq" % stem0,

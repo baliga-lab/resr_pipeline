@@ -71,32 +71,45 @@ if __name__ == '__main__':
     parser.add_argument('dbpath', help="path for database files")
     args = parser.parse_args()
 
-    freq_map = {}
+    special_map = {}
     varscan_df = pandas.read_csv(args.varscan, sep='\t')
     for index, row in varscan_df.iterrows():
         chrom = row["Chrom"]
         pos = row["Position"]
-        special = row["Cons:Cov:Reads1:Reads2:Freq:P-value.1"]
-        freq_map[pos] = special.split(":")[4]
+        cons, cov, reads1, reads2, freq, pval = row["Cons:Cov:Reads1:Reads2:Freq:P-value.1"].split(":")
+        special_map[pos] = {
+            "cons": cons,
+            "cov": cov,
+            "reads1": reads1,
+            "reads2": reads2,
+            "freq": freq,
+            "pval": pval
+        }
 
     gene_ids, gene_infos, code, genome, igr_keys, igr = read_databases(args.dbpath)
     snp_df = pandas.read_csv(args.snpfile, sep='\t', header=None,
                              names=["VarscanPos", "Ref", "Alt"])
     header = ["VarscanPosition", "Ref", "Alt", "CodonPos", "Type_WTAA_MutAA",
               "WTCodon_MutCodon", "Gene ID", "Name",
-              "Description", "Type", "Frequency"]
+              "Description", "Type", "Cons", "Cov", "Reads1", "Reads2", "Freq", "Pval"]
     print('\t'.join(header))
     for index, row in snp_df.iterrows():
-        freq = freq_map[row['VarscanPos']]
+        special = special_map[row['VarscanPos']]
         for gene_id in gene_ids:
             gene_info = gene_infos[gene_id]
             if is_in_gene(row['VarscanPos'], gene_info):
                 if gene_id.startswith('MTB'):
-                    print("%s\t%s\t%s\t-\t---\t---\t%s\t%s\t%s\t%s\t%s" %
+                    print("%s\t%s\t%s\t-\t---\t---\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
                           (row["VarscanPos"], row["Ref"], row["Alt"],
                            gene_id,
                            gene_info['name'], gene_info['description'], gene_info['category'],
-                           freq))
+                           # varscan special
+                           special["cons"],
+                           special["cov"],
+                           special["reads1"],
+                           special["reads2"],
+                           special["freq"],
+                           special["pval"]))
                 else:
                     if gene_info['strand'] == '+':
                         #print("NON-MTB GENE (+) %s\n" % gene_id);
@@ -149,10 +162,17 @@ if __name__ == '__main__':
 
                     code_info = '%s-%s-%s' % (restype, code[wildtype], code[mutation])
                     triplets = '%s-%s' % (wildtype, mutation)
-                    print("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
+                    print("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
                           (row["VarscanPos"], row["Ref"], row["Alt"],
                            codon, code_info, triplets, gene_id, gene_info['name'],
-                           gene_info['description'], gene_info['category'], freq))
+                           gene_info['description'], gene_info['category'],
+                           # varscan special
+                           special["cons"],
+                           special["cov"],
+                           special["reads1"],
+                           special["reads2"],
+                           special["freq"],
+                           special["pval"]))
 
             else:
                 #print("not a gene location")
