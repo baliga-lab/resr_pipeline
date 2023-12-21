@@ -195,6 +195,13 @@ if __name__ == '__main__':
                 name_str = "%s-%s" % (gene_info1['name'], gene_info2['name'])
                 desc_str = "%s##%s" % (gene_info1['description'], gene_info2['description'])
                 cat_str = "%s##%s" % (gene_info1['category'], gene_info2['category'])
-                print("%d\t%s\t%s\t-\t---\t%s\t%s\t%s\t%s\t%s\t%s" %
+                print("%d\t%s\t%s\t-\t---\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
                       (row['VarscanPos'], row['Ref'], row['Alt'],
-                       loc_str, j, name_str, desc_str, cat_str, freq))
+                       loc_str, j, name_str, desc_str, cat_str,
+                       # varscan special
+                       special["cons"],
+                       special["cov"],
+                       special["reads1"],
+                       special["reads2"],
+                       special["freq"],
+                       special["pval"]))
