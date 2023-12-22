@@ -90,7 +90,7 @@ perl {{resr_script_path}}/repeatloci_filter.pl {{unfixed_result_path}}/5up_remov
 cut -f9-11 {{unfixed_result_path}}/{{keptfilt_file}} > {{unfixed_result_path}}/{{keptsnp_file}}
 #perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{keptsnp_file}} > {{keptanofilt_file}}
 python {{resr_script_path}}/annotate_mtb_results.py {{unfixed_result_path}}/{{keptsnp_file}} {{unfixed_result_path}}/{{varscan_file}} {{resr_db_path}} > {{unfixed_result_path}}/{{result_file}}
-tb-profiler profile --bam {{unfixed_result_path}}/ERR1023302.sorted.bam --dir {{tbprofiler_result_path}} --prefix {{sample_id}} --csv
+tb-profiler profile --bam {{unfixed_result_path}}/{{sample_id}}.sorted.bam --dir {{tbprofiler_result_path}} --prefix {{sample_id}} --csv
 """
 
 if __name__ == '__main__':
@@ -156,10 +156,10 @@ if __name__ == '__main__':
         "result_file": "%s.finalresult" % stem0
     }
     fixed_out = fixed_templ.render(config)
-    with open("fixed_snp_calling.sh", "w") as outfile:
+    with open("%s_fixed_snp_calling.sh" % stem0, "w") as outfile:
         outfile.write(fixed_out)
 
     unfixed_templ = jinja2.Template(UNFIXED_TEMPLATE)
     unfixed_out = unfixed_templ.render(config)
-    with open("unfixed_snp_calling.sh", "w") as outfile:
+    with open("%s_unfixed_snp_calling.sh" % stem0, "w") as outfile:
         outfile.write(unfixed_out)
