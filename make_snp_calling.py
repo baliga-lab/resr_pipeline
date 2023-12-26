@@ -85,9 +85,11 @@ if __name__ == '__main__':
     parser.add_argument('result_path', help="result path")
 
     args = parser.parse_args()
+    paired_end = True
     fastq_files = find_fastq_files(args.input_path, [args.paired_fastq_pattern])
     if len(fastq_files) == 0:
         print("no paired FASTQ files found - trying single")
+        paired_end = False
         fastq_files = find_fastq_files(args.input_path, [args.single_fastq_pattern])
         if len(fastq_files) == 0:
             print("NO single FASTQ files found - FAILURE !!!")
