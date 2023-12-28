@@ -7,7 +7,7 @@ from globalsearch.rnaseq.find_files import find_fastq_files
 
 DESCRIPTION = "make_fixed_snp_calling"
 
-SCRIPT_TEMPLATE = """#!/bin/bash
+SCRIPT_TEMPLATE_PAIRED = """#!/bin/bash
 sickle pe -l 35 -f {{fastq1}} -r {{fastq2}} -t sanger -o {{common_result_path}}/{{trimmed1}} -p {{common_result_path}}/{{trimmed2}} -s {{common_result_path}}/{{trimmedS}}
 bwa aln -R 1 {{fasta_path}} {{common_result_path}}/{{trimmed1}} > {{common_result_path}}/{{sai1}}
 bwa aln -R 1 {{fasta_path}} {{common_result_path}}/{{trimmed2}} > {{common_result_path}}/{{sai2}}
@@ -18,6 +18,19 @@ samtools view -bhSt {{fasta_path}}.fai {{common_result_path}}/{{paired_sam}} -o 
 samtools view -bhSt {{fasta_path}}.fai {{common_result_path}}/{{single_sam}} -o {{common_result_path}}/{{single_bam}}
 samtools merge {{common_result_path}}/{{merged_bam}} {{common_result_path}}/{{paired_bam}} {{common_result_path}}/{{single_bam}}
 samtools sort {{common_result_path}}/{{merged_bam}} -o {{common_result_path}}/{{sorted_bam}}
+"""
+
+SCRIPT_TEMPLATE_SINGLE = """#!/bin/bash
+sickle se -l 35 -f {{fastq}} -t sanger -o {{common_result_path}}/{{trimmed}}
+bwa aln -R 1 {{fasta_path}} {{common_result_path}}/{{trimmed}} > {{common_result_path}}/{{sai}}
+bwa samse -n 1 {{fasta_path}} {{common_result_path}}/{{sai}} {{common_result_path}}/{{trimmed}} > {{common_result_path}}/{{single_sam}}
+samtools view -bhSt {{fasta_path}}.fai {{common_result_path}}/{{single_sam}} -o {{common_result_path}}/{{single_bam}}
+samtools sort {{common_result_path}}/{{single_bam}} -o {{common_result_path}}/{{sorted_bam}}
+"""
+
+SCRIPT_TEMPLATE_COMMON = """
+
+# Start here with sorted BAM
 samtools index {{common_result_path}}/{{sorted_bam}}
 samtools mpileup -q 30 -Q 20 -ABOf {{fasta_path}} {{common_result_path}}/{{sorted_bam}} > {{common_result_path}}/{{pileup_file}}
 java -jar {{varscan_path}} mpileup2snp {{common_result_path}}/{{pileup_file}} --min-coverage 3 --min-reads2 2 --min-avg-qual 20 --min-var-freq 0.01 --min-freq-for-hom 0.9 --p-value 99e-02 --strand-filter 1 > {{common_result_path}}/{{varscan_file}}
@@ -27,7 +40,7 @@ java -jar {{varscan_path}} mpileup2cns {{common_result_path}}/{{pileup_file}} --
 perl {{resr_script_path}}/PPE_PE_INS_filt.pl {{resr_db_path}}/PPE_INS_loci.list {{common_result_path}}/{{varscan_file}} > {{fixed_result_path}}/{{ppe_file}}
 perl {{resr_script_path}}/fixed_format_trans.pl {{fixed_result_path}}/{{ppe_file}} > {{fixed_result_path}}/{{for_file}}
 perl {{resr_script_path}}/fix_extract.pl {{fixed_result_path}}/{{for_file}} > {{fixed_result_path}}/{{fix_file}}
-perl {{resr_script_path}}/unfix_pileup_match.pl {{fixed_result_path}}/{{for_file}} {{fixed_result_path}}/{{pileup_file}} > {{fixed_result_path}}/{{forup_file}}
+perl {{resr_script_path}}/unfix_pileup_match.pl {{fixed_result_path}}/{{for_file}} {{common_result_path}}/{{pileup_file}} > {{fixed_result_path}}/{{forup_file}}
 cut -f2-4 {{fixed_result_path}}/{{fix_file}} > {{fixed_result_path}}/{{snp_file}}
 python {{resr_script_path}}/annotate_mtb_results.py {{fixed_result_path}}/{{snp_file}} {{common_result_path}}/{{varscan_file}} {{resr_db_path}} > {{fixed_result_path}}/{{result_file}}
 
@@ -39,7 +52,7 @@ perl {{resr_script_path}}/PE_IS_filt.pl {{resr_db_path}}/Excluded_loci_mask.list
 perl {{resr_script_path}}/unfixed_format_trans.pl {{unfixed_result_path}}/{{ppe_file}} > {{unfixed_result_path}}/{{for_file}}
 
 #extract read location from mpileup file (where does a mutation allele locate on a seqeuncing read), for further filtering based on tail distribution
-perl {{resr_script_path}}/mix_pileup_merge.pl {{unfixed_result_path}}/{{for_file}} {{unfixed_result_path}}/{{pileup_file}} > {{unfixed_result_path}}/{{forup_file}}
+perl {{resr_script_path}}/mix_pileup_merge.pl {{unfixed_result_path}}/{{for_file}} {{common_result_path}}/{{pileup_file}} > {{unfixed_result_path}}/{{forup_file}}
 
 #average sequencing depth, only include samples with genome coverage rate >0.9 and sequencing depth >20X
 # the python script has the same effect as the sed/awk line, but is easier to understand
@@ -93,12 +106,11 @@ if __name__ == '__main__':
         fastq_files = find_fastq_files(args.input_path, [args.single_fastq_pattern])
         if len(fastq_files) == 0:
             print("NO single FASTQ files found - FAILURE !!!")
+            exit(1)
         else:
             fq1 = fastq_files[0][0]
             basename = os.path.basename(fq1)
             stem0 = basename.replace(".fastq", "").replace("gz", "")
-            print("stem0: ", stem0)
-        exit(1)
     else:
         fq1, fq2 = fastq_files[0]
         basename1 = os.path.basename(fq1)
@@ -139,10 +151,7 @@ if __name__ == '__main__':
         "unfixed_result_path": unfixed_result_path,
         "common_result_path": common_result_path,
         "tbprofiler_result_path": tbprofiler_result_path,
-        "fastq1": fq1, "fastq2": fq2,
-        "trimmed1": "%s_trimmed.fq" % stem1, "trimmed2": "%s_trimmed.fq" % stem2,
-        "trimmedS": "%s_trimmedS.fq" % stem0,
-        "sai1": "%s.sai" % stem1, "sai2": "%s.sai" % stem2, "saiS": "%s_S.sai" % stem0,
+
         "paired_sam": "%s.paired.sam" % stem0, "single_sam": "%s.single.sam" % stem0,
         "paired_bam": "%s.paired.bam" % stem0, "single_bam": "%s.single.bam" % stem0,
         "merged_bam": "%s.merged.bam" % stem0, "sorted_bam": "%s.sorted.bam" % stem0,
@@ -157,7 +166,20 @@ if __name__ == '__main__':
         "keptanofilt_file": "%s.keptanofilt" % stem0,
         "result_file": "%s.finalresult" % stem0
     }
-    script_templ = jinja2.Template(SCRIPT_TEMPLATE)
+    if paired_end:
+        config.update({
+            "fastq1": fq1, "fastq2": fq2,
+            "trimmed1": "%s_trimmed.fq" % stem1, "trimmed2": "%s_trimmed.fq" % stem2,
+            "trimmedS": "%s_trimmedS.fq" % stem0,
+            "sai1": "%s.sai" % stem1, "sai2": "%s.sai" % stem2, "saiS": "%s_S.sai" % stem0
+        })
+        script_templ = jinja2.Template(SCRIPT_TEMPLATE_PAIRED + SCRIPT_TEMPLATE_COMMON)
+    else:
+        config.update({
+            "fastq": fq1, "trimmed": "%s_trimmedS.fq" % stem0,
+            "sai": "%s.sai" % stem0
+        })
+        script_templ = jinja2.Template(SCRIPT_TEMPLATE_SINGLE + SCRIPT_TEMPLATE_COMMON)
     script_out = script_templ.render(config)
     with open("%s_snp_calling.sh" % stem0, "w") as outfile:
         outfile.write(script_out)
