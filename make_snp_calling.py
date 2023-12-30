@@ -48,7 +48,8 @@ python {{resr_script_path}}/annotate_mtb_results.py {{fixed_result_path}}/{{snp_
 # use cns and varscan file from fixed
 
 #exclude regions belonging to PPE/PE and insertion sequences, and also exclude the regions that were recently marked as error-prone (Marin, Bioinformatics, 2022)
-perl {{resr_script_path}}/PE_IS_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{common_result_path}}/{{varscan_file}} > {{unfixed_result_path}}/{{ppe_file}}
+#perl {{resr_script_path}}/PE_IS_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{common_result_path}}/{{varscan_file}} > {{unfixed_result_path}}/{{ppe_file}}
+python {{resr_script_path}}/varscan_drop_excluded.py {{resr_db_path}}/Excluded_loci_mask.list {{common_result_path}}/{{varscan_file}} {{unfixed_result_path}}/{{ppe_file}}
 perl {{resr_script_path}}/unfixed_format_trans.pl {{unfixed_result_path}}/{{ppe_file}} > {{unfixed_result_path}}/{{for_file}}
 
 #extract read location from mpileup file (where does a mutation allele locate on a seqeuncing read), for further filtering based on tail distribution
@@ -63,6 +64,8 @@ python3 {{resr_script_path}}/avg_sequencing_depth.py {{common_result_path}}/{{cn
 perl {{resr_script_path}}/mix_extract_0.95.pl {{unfixed_result_path}}/{{forup_file}} > {{unfixed_result_path}}/{{mix_file}}
 perl {{resr_script_path}}/forup_format.pl {{unfixed_result_path}}/{{mix_file}} > {{unfixed_result_path}}/{{mixfor_file}}
 perl {{resr_script_path}}/info_mark.pl {{unfixed_result_path}}/{{mixfor_file}} > {{unfixed_result_path}}/{{mixmark_file}}
+
+# this script implicitly generates ".mixmarkkept" and ".mixmarkfilt"
 perl {{resr_script_path}}/redepin_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{dep_file}} {{unfixed_result_path}}/{{mixmark_file}}
 
 #filter list of highly repeated mutations with similar mutational frequency
@@ -74,7 +77,7 @@ perl {{resr_script_path}}/loci_freq_count.pl {{unfixed_result_path}}/all_MIX.txt
 perl {{resr_script_path}}/repeat_number_merge.pl {{unfixed_result_path}}/mix_repeat.txt {{unfixed_result_path}}/kept_repeat.txt > {{unfixed_result_path}}/merge_kept_mix.txt
 perl {{resr_script_path}}/ratio.pl {{unfixed_result_path}}/merge_kept_mix.txt > {{unfixed_result_path}}/merge_kept_mix_ratio.txt
 # WW: Comparing to 5 can lead to 0 *per5up.txt files !!!
-awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
+#awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
 paste {{unfixed_result_path}}/*per5up.txt > {{unfixed_result_path}}/5up_0.6_paste.txt
 perl {{resr_script_path}}/stdv.pl {{unfixed_result_path}}/5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > {{unfixed_result_path}}/5up_0.6_0.25.list
 perl {{resr_script_path}}/freq_extract.pl {{unfixed_result_path}}/5up_0.6_0.25.list {{unfixed_result_path}}/5up_0.6_paste.txt > {{unfixed_result_path}}/5up_0.6_0.25.txt
@@ -101,7 +104,7 @@ if __name__ == '__main__':
     paired_end = True
     fastq_files = find_fastq_files(args.input_path, [args.paired_fastq_pattern])
     if len(fastq_files) == 0:
-        print("no paired FASTQ files found - trying single")
+        print("no paired FASTQ files found - generating single read pipeline")
         paired_end = False
         fastq_files = find_fastq_files(args.input_path, [args.single_fastq_pattern])
         if len(fastq_files) == 0:
@@ -112,6 +115,7 @@ if __name__ == '__main__':
             basename = os.path.basename(fq1)
             stem0 = basename.replace(".fastq", "").replace("gz", "")
     else:
+        print("paired FASTQ files found - generating paired end pipeline")
         fq1, fq2 = fastq_files[0]
         basename1 = os.path.basename(fq1)
         basename2 = os.path.basename(fq2)

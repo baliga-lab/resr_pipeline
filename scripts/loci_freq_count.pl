@@ -3,19 +3,19 @@ use warnings;
 
 open F1, $ARGV[0] or die $!;
 while(<F1>){
-chomp;
-@a=split "\t",$_;
-$id="$a[8]\t$a[9]\t$a[10]";
-if(!exists $hash{$id}){
-$hash{$id}=1;
-}else{
-$hash{$id}++;
-}
+    chomp;
+    @a=split "\t",$_;
+    $id="$a[8]\t$a[9]\t$a[10]";
+    if(!exists $hash{$id}){
+        $hash{$id}=1;
+    }else{
+        $hash{$id}++;
+    }
 }
 close F1;
 
 foreach $i(keys %hash){
-print "$i\t$hash{$i}\n";
+    print "$i\t$hash{$i}\n";
 }
 
 

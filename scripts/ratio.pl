@@ -3,10 +3,10 @@ use warnings;
 
 open F1, $ARGV[0] or die $!;
 while(<F1>){
-chomp;
-@a=split "\t",$_;
-$rat=$a[3]/$a[4];
-print "$_\t$rat\n";
+    chomp;
+    @a=split "\t",$_;
+    $rat=$a[3]/$a[4];
+    print "$_\t$rat\n";
 }
 close F1;
 
