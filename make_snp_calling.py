@@ -3,7 +3,9 @@
 import argparse
 import jinja2
 import os
+import json
 from globalsearch.rnaseq.find_files import find_fastq_files
+
 
 DESCRIPTION = "make_fixed_snp_calling"
 
@@ -89,7 +91,14 @@ perl {{resr_script_path}}/repeatloci_filter.pl {{unfixed_result_path}}/5up_remov
 cut -f9-11 {{unfixed_result_path}}/{{keptfilt_file}} > {{unfixed_result_path}}/{{keptsnp_file}}
 #perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{keptsnp_file}} > {{keptanofilt_file}}
 python {{resr_script_path}}/annotate_mtb_results.py {{unfixed_result_path}}/{{keptsnp_file}} {{common_result_path}}/{{varscan_file}} {{resr_db_path}} > {{unfixed_result_path}}/{{result_file}}
+"""
+
+SCRIPT_TEMPLATE_TBPROFILER1 = """
 tb-profiler profile --bam {{common_result_path}}/{{sample_id}}.sorted.bam --dir {{tbprofiler_result_path}} --prefix {{sample_id}} --csv
+"""
+
+SCRIPT_TEMPLATE_TBPROFILER2 = """
+conda run -n {{conda_env}} tb-profiler profile --bam {{common_result_path}}/{{sample_id}}.sorted.bam --dir {{tbprofiler_result_path}} --prefix {{sample_id}} --csv
 """
 
 if __name__ == '__main__':
@@ -97,16 +106,18 @@ if __name__ == '__main__':
                                      description=DESCRIPTION)
     parser.add_argument('--paired_fastq_pattern', default="*_{{readnum}}.fastq", help="paired FASTQ pattern")
     parser.add_argument('--single_fastq_pattern', default="*.fastq", help="single end FASTQ pattern")
+    parser.add_argument('--config', default="config.json", help="config file")
     parser.add_argument('input_path', help="input path to sample")
     parser.add_argument('result_path', help="result path")
 
     args = parser.parse_args()
     paired_end = True
-    fastq_files = find_fastq_files(args.input_path, [args.paired_fastq_pattern])
+    abs_input_path = os.path.abspath(args.input_path)
+    fastq_files = find_fastq_files(abs_input_path, [args.paired_fastq_pattern])
     if len(fastq_files) == 0:
         print("no paired FASTQ files found - generating single read pipeline")
         paired_end = False
-        fastq_files = find_fastq_files(args.input_path, [args.single_fastq_pattern])
+        fastq_files = find_fastq_files(abs_input_path, [args.single_fastq_pattern])
         if len(fastq_files) == 0:
             print("NO single FASTQ files found - FAILURE !!!")
             exit(1)
@@ -125,10 +136,14 @@ if __name__ == '__main__':
         # depending on the readnum format
         stem0 = stem1.replace("_1", "")
 
-    fasta_path = "/bwa_pipeline/reference/MTB_ancestor_reference.fasta"
+    with open(args.config) as infile:
+        config_file = json.load(infile)
+        print(config_file)
+
+    #fasta_path = "/bwa_pipeline/reference/MTB_ancestor_reference.fasta"
     resr_script_path = "scripts"
     resr_db_path = "databases"
-    varscan_path = "/jarfiles/VarScan.v2.4.0.jar"
+    #varscan_path = "/jarfiles/VarScan.v2.4.0.jar"
 
     common_result_path = os.path.join(args.result_path, "common")
     fixed_result_path = os.path.join(args.result_path, "fixed")
@@ -145,12 +160,14 @@ if __name__ == '__main__':
     if not os.path.exists(fixed_result_path):
         os.makedirs(fixed_result_path)
 
+    # TODO: check if the BWA indexes exist, otherwise generate them with
+    # bwa index -a bwtsw <fasta>
     config = {
         "sample_id": stem0,
-        "fasta_path": fasta_path,
+        "fasta_path": config_file['fasta_path'],
         "resr_script_path": resr_script_path,
         "resr_db_path": resr_db_path,
-        "varscan_path": varscan_path,
+        "varscan_path": config_file['varscan_path'],
         "fixed_result_path": fixed_result_path,
         "unfixed_result_path": unfixed_result_path,
         "common_result_path": common_result_path,
@@ -170,6 +187,12 @@ if __name__ == '__main__':
         "keptanofilt_file": "%s.keptanofilt" % stem0,
         "result_file": "%s.finalresult" % stem0
     }
+    if "tb_profiler_env" in config_file:
+        tb_profiler_templ = SCRIPT_TEMPLATE_TBPROFILER2
+        config['conda_env'] = config_file['tb_profiler_env']
+    else:
+        tb_profiler_templ = SCRIPT_TEMPLATE_TBPROFILER1
+
     if paired_end:
         config.update({
             "fastq1": fq1, "fastq2": fq2,
@@ -177,13 +200,14 @@ if __name__ == '__main__':
             "trimmedS": "%s_trimmedS.fq" % stem0,
             "sai1": "%s.sai" % stem1, "sai2": "%s.sai" % stem2, "saiS": "%s_S.sai" % stem0
         })
-        script_templ = jinja2.Template(SCRIPT_TEMPLATE_PAIRED + SCRIPT_TEMPLATE_COMMON)
+        script_templ = jinja2.Template(SCRIPT_TEMPLATE_PAIRED + SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
     else:
         config.update({
             "fastq": fq1, "trimmed": "%s_trimmedS.fq" % stem0,
             "sai": "%s.sai" % stem0
         })
-        script_templ = jinja2.Template(SCRIPT_TEMPLATE_SINGLE + SCRIPT_TEMPLATE_COMMON)
+        script_templ = jinja2.Template(SCRIPT_TEMPLATE_SINGLE + SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
+
     script_out = script_templ.render(config)
     with open("%s_snp_calling.sh" % stem0, "w") as outfile:
         outfile.write(script_out)
