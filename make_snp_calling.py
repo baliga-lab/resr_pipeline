@@ -9,7 +9,23 @@ from globalsearch.rnaseq.find_files import find_fastq_files
 
 DESCRIPTION = "make_fixed_snp_calling"
 
-SCRIPT_TEMPLATE_PAIRED = """#!/bin/bash
+SCRIPT_TEMPLATE_PRE = """#!/bin/bash
+
+if [ ! -d "{{common_result_path}}" ]; then
+  mkdir -p {{common_result_path}}
+fi
+if [ ! -d "{{fixed_result_path}}" ]; then
+  mkdir -p {{fixed_result_path}}
+fi
+if [ ! -d "{{unfixed_result_path}}" ]; then
+  mkdir -p {{unfixed_result_path}}
+fi
+if [ ! -d "{{tbprofiler_result_path}}" ]; then
+  mkdir -p {{tbprofiler_result_path}}
+fi
+"""
+
+SCRIPT_TEMPLATE_PAIRED = """
 sickle pe -l 35 -f {{fastq1}} -r {{fastq2}} -t sanger -o {{common_result_path}}/{{trimmed1}} -p {{common_result_path}}/{{trimmed2}} -s {{common_result_path}}/{{trimmedS}}
 bwa aln -R 1 {{fasta_path}} {{common_result_path}}/{{trimmed1}} > {{common_result_path}}/{{sai1}}
 bwa aln -R 1 {{fasta_path}} {{common_result_path}}/{{trimmed2}} > {{common_result_path}}/{{sai2}}
@@ -150,16 +166,6 @@ if __name__ == '__main__':
     unfixed_result_path = os.path.join(args.result_path, "unfixed")
     tbprofiler_result_path = os.path.join(args.result_path, "tbprofiler")
 
-    # maybe put this in the script template
-    if not os.path.exists(args.result_path):
-        os.makedirs(args.result_path)
-    if not os.path.exists(common_result_path):
-        os.makedirs(common_result_path)
-    if not os.path.exists(unfixed_result_path):
-        os.makedirs(unfixed_result_path)
-    if not os.path.exists(fixed_result_path):
-        os.makedirs(fixed_result_path)
-
     # TODO: check if the BWA indexes exist, otherwise generate them with
     # bwa index -a bwtsw <fasta>
     config = {
@@ -200,13 +206,15 @@ if __name__ == '__main__':
             "trimmedS": "%s_trimmedS.fq" % stem0,
             "sai1": "%s.sai" % stem1, "sai2": "%s.sai" % stem2, "saiS": "%s_S.sai" % stem0
         })
-        script_templ = jinja2.Template(SCRIPT_TEMPLATE_PAIRED + SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
+        script_templ = jinja2.Template(SCRIPT_TEMPLATE_PRE + SCRIPT_TEMPLATE_PAIRED +
+                                       SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
     else:
         config.update({
             "fastq": fq1, "trimmed": "%s_trimmedS.fq" % stem0,
             "sai": "%s.sai" % stem0
         })
-        script_templ = jinja2.Template(SCRIPT_TEMPLATE_SINGLE + SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
+        script_templ = jinja2.Template(SCRIPT_TEMPLATE_PRE + SCRIPT_TEMPLATE_SINGLE +
+                                       SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
 
     script_out = script_templ.render(config)
     with open("%s_snp_calling.sh" % stem0, "w") as outfile:
