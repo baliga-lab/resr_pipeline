@@ -23,7 +23,7 @@ $comp{"T"}="A";
 $comp{"G"}="C";
 $comp{"C"}="G";
 
-open F1, "2_Tuberculist_new_20150307" or die $!; #open Tuberculist_new_20150307
+open F1, "databases/2_Tuberculist_new_20150307" or die $!; #open Tuberculist_new_20150307
 while(<F1>){
     chomp;
     @a=split "\t",$_;
@@ -71,7 +71,7 @@ sub rtrim {
     return $s
 };
 
-open F2, "3_genetic_codes" or die $!; #open genetic_code
+open F2, "databases/3_genetic_codes" or die $!; #open genetic_code
 while (<F2>){
 	chomp;
 	@a=split "\t",$_;
@@ -79,7 +79,7 @@ while (<F2>){
 }
 close F2;
 
-open F3, "4_mtbc_sequence.fasta" or die $!; #open genome.fasta
+open F3, "databases/4_mtbc_sequence.fasta" or die $!; #open genome.fasta
 while (<F3>) {
     chomp;
     if ($_=~m/>/) {

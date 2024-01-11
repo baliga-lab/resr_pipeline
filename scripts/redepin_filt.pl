@@ -10,6 +10,8 @@ $name="$ARGV[2]";
 $name=~s/info//;
 $name1=$name."kept";
 $name2=$name."disc";
+print("out1: $name1\n");
+print("out2: $name2\n");
 
 open OUT1, ">$name1";
 open OUT2, ">$name2";

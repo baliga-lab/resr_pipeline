@@ -38,7 +38,7 @@ samtools merge {{common_result_path}}/{{merged_bam}} {{common_result_path}}/{{pa
 samtools sort {{common_result_path}}/{{merged_bam}} -o {{common_result_path}}/{{sorted_bam}}
 """
 
-SCRIPT_TEMPLATE_SINGLE = """#!/bin/bash
+SCRIPT_TEMPLATE_SINGLE = """
 sickle se -l 35 -f {{fastq}} -t sanger -o {{common_result_path}}/{{trimmed}}
 bwa aln -R 1 {{fasta_path}} {{common_result_path}}/{{trimmed}} > {{common_result_path}}/{{sai}}
 bwa samse -n 1 {{fasta_path}} {{common_result_path}}/{{sai}} {{common_result_path}}/{{trimmed}} > {{common_result_path}}/{{single_sam}}
@@ -75,7 +75,7 @@ perl {{resr_script_path}}/mix_pileup_merge.pl {{unfixed_result_path}}/{{for_file
 
 #average sequencing depth, only include samples with genome coverage rate >0.9 and sequencing depth >20X
 # the python script has the same effect as the sed/awk line, but is easier to understand
-#sed 's/:/\\t/g' {{cns_file}}|awk '{if ($6 >= 3){n++;sum+=$6}} END {print \"\\t\",n/4411532,\"\\t\",sum/n}' > {{dep_file}}
+#sed 's/:/\\t/g' {{common_result_path}}/{{cns_file}}|awk '{if ($6 >= 3){n++;sum+=$6}} END {print \"\\t\",n/4411532,\"\\t\",sum/n}' > {{unfixed_result_path}}/{{dep_file}}
 python3 {{resr_script_path}}/avg_sequencing_depth.py {{common_result_path}}/{{cns_file}} > {{unfixed_result_path}}/{{dep_file}}
 
 #extract unfixed SNPs from forup files, this will create two files: "markdisc" and "markkept"; the suspected false positives(such as mutations with tail region enrichment) will be moved to markdisc file
@@ -95,7 +95,7 @@ perl {{resr_script_path}}/loci_freq_count.pl {{unfixed_result_path}}/all_MIX.txt
 perl {{resr_script_path}}/repeat_number_merge.pl {{unfixed_result_path}}/mix_repeat.txt {{unfixed_result_path}}/kept_repeat.txt > {{unfixed_result_path}}/merge_kept_mix.txt
 perl {{resr_script_path}}/ratio.pl {{unfixed_result_path}}/merge_kept_mix.txt > {{unfixed_result_path}}/merge_kept_mix_ratio.txt
 # WW: Comparing to 5 can lead to 0 *per5up.txt files !!!
-#awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
+awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
 paste {{unfixed_result_path}}/*per5up.txt > {{unfixed_result_path}}/5up_0.6_paste.txt
 perl {{resr_script_path}}/stdv.pl {{unfixed_result_path}}/5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > {{unfixed_result_path}}/5up_0.6_0.25.list
 perl {{resr_script_path}}/freq_extract.pl {{unfixed_result_path}}/5up_0.6_0.25.list {{unfixed_result_path}}/5up_0.6_paste.txt > {{unfixed_result_path}}/5up_0.6_0.25.txt
@@ -105,7 +105,7 @@ perl {{resr_script_path}}/repeatloci_filter.pl {{unfixed_result_path}}/5up_remov
 
 #annotation of unfixed SNPs
 cut -f9-11 {{unfixed_result_path}}/{{keptfilt_file}} > {{unfixed_result_path}}/{{keptsnp_file}}
-#perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{keptsnp_file}} > {{keptanofilt_file}}
+#perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{unfixed_result_path}}/{{keptsnp_file}} > {{unfixed_result_path}}/{{keptanofilt_file}}.perlres
 python {{resr_script_path}}/annotate_mtb_results.py {{unfixed_result_path}}/{{keptsnp_file}} {{common_result_path}}/{{varscan_file}} {{resr_db_path}} > {{unfixed_result_path}}/{{result_file}}
 """
 
