@@ -84,7 +84,8 @@ perl {{resr_script_path}}/forup_format.pl {{unfixed_result_path}}/{{mix_file}} >
 perl {{resr_script_path}}/info_mark.pl {{unfixed_result_path}}/{{mixfor_file}} > {{unfixed_result_path}}/{{mixmark_file}}
 
 # this script implicitly generates ".mixmarkkept" and ".mixmarkfilt"
-perl {{resr_script_path}}/redepin_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{dep_file}} {{unfixed_result_path}}/{{mixmark_file}}
+#perl {{resr_script_path}}/redepin_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{dep_file}} {{unfixed_result_path}}/{{mixmark_file}}
+python {{resr_script_path}}/redepin_filt.py {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{dep_file}} {{unfixed_result_path}}/{{mixmark_file}}
 
 #filter list of highly repeated mutations with similar mutational frequency
 #for those unfixed mutations that arise >=5 times in the 50K isolates, further check their reliability based on 1) the ratio in "markkept"; 2) the distribution of the mutational frequency.
@@ -95,7 +96,7 @@ perl {{resr_script_path}}/loci_freq_count.pl {{unfixed_result_path}}/all_MIX.txt
 perl {{resr_script_path}}/repeat_number_merge.pl {{unfixed_result_path}}/mix_repeat.txt {{unfixed_result_path}}/kept_repeat.txt > {{unfixed_result_path}}/merge_kept_mix.txt
 perl {{resr_script_path}}/ratio.pl {{unfixed_result_path}}/merge_kept_mix.txt > {{unfixed_result_path}}/merge_kept_mix_ratio.txt
 # WW: Comparing to 5 can lead to 0 *per5up.txt files !!!
-awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
+awk '$4>=1' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
 paste {{unfixed_result_path}}/*per5up.txt > {{unfixed_result_path}}/5up_0.6_paste.txt
 perl {{resr_script_path}}/stdv.pl {{unfixed_result_path}}/5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > {{unfixed_result_path}}/5up_0.6_0.25.list
 perl {{resr_script_path}}/freq_extract.pl {{unfixed_result_path}}/5up_0.6_0.25.list {{unfixed_result_path}}/5up_0.6_paste.txt > {{unfixed_result_path}}/5up_0.6_0.25.txt
