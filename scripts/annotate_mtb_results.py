@@ -91,7 +91,7 @@ if __name__ == '__main__':
                              names=["VarscanPos", "Ref", "Alt"])
     header = ["VarscanPosition", "Ref", "Alt", "CodonPos", "Type_WTAA_MutAA",
               "WTCodon_MutCodon", "Gene ID", "Name",
-              "Description", "Type", "Cons", "Cov", "Reads1", "Reads2", "Freq", "Pval"]
+              "Description", "Type", "Cons", "Cov", "Reads1", "Reads2", "Freq"]
     print('\t'.join(header))
     for index, row in snp_df.iterrows():
         special = special_map[row['VarscanPos']]
@@ -99,7 +99,7 @@ if __name__ == '__main__':
             gene_info = gene_infos[gene_id]
             if is_in_gene(row['VarscanPos'], gene_info):
                 if gene_id.startswith('MTB'):
-                    print("%s\t%s\t%s\t-\t---\t---\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
+                    print("%s\t%s\t%s\t-\t---\t---\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
                           (row["VarscanPos"], row["Ref"], row["Alt"],
                            gene_id,
                            gene_info['name'], gene_info['description'], gene_info['category'],
@@ -108,8 +108,7 @@ if __name__ == '__main__':
                            special["cov"],
                            special["reads1"],
                            special["reads2"],
-                           special["freq"],
-                           special["pval"]))
+                           special["freq"]))
                 else:
                     if gene_info['strand'] == '+':
                         #print("NON-MTB GENE (+) %s\n" % gene_id);
@@ -162,7 +161,7 @@ if __name__ == '__main__':
 
                     code_info = '%s-%s-%s' % (restype, code[wildtype], code[mutation])
                     triplets = '%s-%s' % (wildtype, mutation)
-                    print("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
+                    print("%s\t%s\t%s\t%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
                           (row["VarscanPos"], row["Ref"], row["Alt"],
                            codon, code_info, triplets, gene_id, gene_info['name'],
                            gene_info['description'], gene_info['category'],
@@ -171,8 +170,7 @@ if __name__ == '__main__':
                            special["cov"],
                            special["reads1"],
                            special["reads2"],
-                           special["freq"],
-                           special["pval"]))
+                           special["freq"]))
 
             else:
                 #print("not a gene location")
@@ -195,7 +193,7 @@ if __name__ == '__main__':
                 name_str = "%s-%s" % (gene_info1['name'], gene_info2['name'])
                 desc_str = "%s##%s" % (gene_info1['description'], gene_info2['description'])
                 cat_str = "%s##%s" % (gene_info1['category'], gene_info2['category'])
-                print("%d\t%s\t%s\t-\t---\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
+                print("%d\t%s\t%s\t-\t---\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s" %
                       (row['VarscanPos'], row['Ref'], row['Alt'],
                        loc_str, j, name_str, desc_str, cat_str,
                        # varscan special
@@ -203,5 +201,4 @@ if __name__ == '__main__':
                        special["cov"],
                        special["reads1"],
                        special["reads2"],
-                       special["freq"],
-                       special["pval"]))
+                       special["freq"]))

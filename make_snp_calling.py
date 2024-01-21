@@ -11,6 +11,8 @@ DESCRIPTION = "make_fixed_snp_calling"
 
 SCRIPT_TEMPLATE_PRE = """#!/bin/bash
 
+#SBATCH -J resr_mtb
+
 if [ ! -d "{{common_result_path}}" ]; then
   mkdir -p {{common_result_path}}
 fi
@@ -157,10 +159,8 @@ if __name__ == '__main__':
         config_file = json.load(infile)
         print(config_file)
 
-    #fasta_path = "/bwa_pipeline/reference/MTB_ancestor_reference.fasta"
     resr_script_path = "scripts"
     resr_db_path = "databases"
-    #varscan_path = "/jarfiles/VarScan.v2.4.0.jar"
 
     common_result_path = os.path.join(args.result_path, "common")
     fixed_result_path = os.path.join(args.result_path, "fixed")
@@ -170,6 +170,7 @@ if __name__ == '__main__':
     # TODO: check if the BWA indexes exist, otherwise generate them with
     # bwa index -a bwtsw <fasta>
     config = {
+        "log_dir": config_file['log_dir'],
         "sample_id": stem0,
         "fasta_path": config_file['fasta_path'],
         "resr_script_path": resr_script_path,
