@@ -59,7 +59,9 @@ RUN conda install -y -c conda-forge ossuuid
 WORKDIR /
 RUN wget https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-ubuntu64.tar.gz
 RUN tar xvfz sratoolkit.current-ubuntu64.tar.gz
-ENV PATH="$PATH:/sratoolkit.3.0.10-ubuntu64/bin"
+
+# add SRA toolkit and BWA to the path
+ENV PATH="$PATH:/sratoolkit.3.0.10-ubuntu64/bin:/bwa"
 
 # Sickle
 RUN conda install -y -c bioconda sickle-trim
