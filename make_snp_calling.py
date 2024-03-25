@@ -86,30 +86,13 @@ perl {{resr_script_path}}/forup_format.pl {{unfixed_result_path}}/{{mix_file}} >
 perl {{resr_script_path}}/info_mark.pl {{unfixed_result_path}}/{{mixfor_file}} > {{unfixed_result_path}}/{{mixmark_file}}
 
 # this script implicitly generates ".mixmarkkept" and ".mixmarkfilt"
-#perl {{resr_script_path}}/redepin_filt.pl {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{dep_file}} {{unfixed_result_path}}/{{mixmark_file}}
 python {{resr_script_path}}/redepin_filt.py {{resr_db_path}}/Excluded_loci_mask.list {{unfixed_result_path}}/{{dep_file}} {{unfixed_result_path}}/{{mixmark_file}}
 
-#filter list of highly repeated mutations with similar mutational frequency
-#for those unfixed mutations that arise >=5 times in the 50K isolates, further check their reliability based on 1) the ratio in "markkept"; 2) the distribution of the mutational frequency.
-cat {{unfixed_result_path}}/*mixmarkkept > {{unfixed_result_path}}/all_KEPT.txt
-perl {{resr_script_path}}/loci_freq_count.pl {{unfixed_result_path}}/all_KEPT.txt > {{unfixed_result_path}}/kept_repeat.txt
-cat {{unfixed_result_path}}/*mixmark > {{unfixed_result_path}}/all_MIX.txt
-perl {{resr_script_path}}/loci_freq_count.pl {{unfixed_result_path}}/all_MIX.txt > {{unfixed_result_path}}/mix_repeat.txt
-perl {{resr_script_path}}/repeat_number_merge.pl {{unfixed_result_path}}/mix_repeat.txt {{unfixed_result_path}}/kept_repeat.txt > {{unfixed_result_path}}/merge_kept_mix.txt
-perl {{resr_script_path}}/ratio.pl {{unfixed_result_path}}/merge_kept_mix.txt > {{unfixed_result_path}}/merge_kept_mix_ratio.txt
-# WW: Comparing to 5 can lead to 0 *per5up.txt files !!!
-awk '$4>=1' {{unfixed_result_path}}/merge_kept_mix_ratio.txt |awk '$6>0.6'|cut -f1|while read i;do echo $i > {{unfixed_result_path}}/$i.per5up.txt;grep -w $i {{unfixed_result_path}}/all_KEPT.txt|cut -f12 >> {{unfixed_result_path}}/$i.per5up.txt;done
-paste {{unfixed_result_path}}/*per5up.txt > {{unfixed_result_path}}/5up_0.6_paste.txt
-perl {{resr_script_path}}/stdv.pl {{unfixed_result_path}}/5up_0.6_paste.txt |awk '$2<0.25'|cut -f1 > {{unfixed_result_path}}/5up_0.6_0.25.list
-perl {{resr_script_path}}/freq_extract.pl {{unfixed_result_path}}/5up_0.6_0.25.list {{unfixed_result_path}}/5up_0.6_paste.txt > {{unfixed_result_path}}/5up_0.6_0.25.txt
-awk '$4>=5' {{unfixed_result_path}}/merge_kept_mix_ratio.txt|cut -f1 > {{unfixed_result_path}}/5up.list
-perl {{resr_script_path}}/repeat_loci.pl {{unfixed_result_path}}/5up_0.6_0.25.list {{unfixed_result_path}}/5up.list > {{unfixed_result_path}}/5up_remove_loc.list
-perl {{resr_script_path}}/repeatloci_filter.pl {{unfixed_result_path}}/5up_remove_loc.list {{unfixed_result_path}}/{{markkept_file}} > {{unfixed_result_path}}/{{keptfilt_file}}
+# Process unfiltered result
+cat <(cut -f9-11 {{unfixed_result_path}}/{{markkept_file}}) <(cut -f9-11 {{unfixed_result_path}}/{{mixmark_file}}) | sort -u | uniq > {{unfixed_result_path}}/{{keptsnp_file}}
 
-#annotation of unfixed SNPs
-cut -f9-11 {{unfixed_result_path}}/{{keptfilt_file}} > {{unfixed_result_path}}/{{keptsnp_file}}
-#perl {{resr_script_path}}/1_MTBC_Annotation_mtbc_4411532.pl {{unfixed_result_path}}/{{keptsnp_file}} > {{unfixed_result_path}}/{{keptanofilt_file}}.perlres
 python {{resr_script_path}}/annotate_mtb_results.py {{unfixed_result_path}}/{{keptsnp_file}} {{common_result_path}}/{{varscan_file}} {{resr_db_path}} > {{unfixed_result_path}}/{{result_file}}
+
 """
 
 SCRIPT_TEMPLATE_TBPROFILER1 = """
@@ -118,6 +101,17 @@ tb-profiler profile --bam {{common_result_path}}/{{sample_id}}.sorted.bam --dir 
 
 SCRIPT_TEMPLATE_TBPROFILER2 = """
 conda run -n {{conda_env}} tb-profiler profile --bam {{common_result_path}}/{{sample_id}}.sorted.bam --dir {{tbprofiler_result_path}} --prefix {{sample_id}} --csv
+"""
+
+# Cleanup for large files
+SCRIPT_TEMPLATE_CLEANUP = """
+rm -rf {{common_result_path}}
+rm -f {{fixed_result_path}}/*.{fix,for,forup,ppe,snp}
+rm -f {{unfixed_result_path}}/*.{dep,for,forup,keptsnp,mix,mixfor,mixmark,mixmarkdisc,mixmarkkept,ppe}
+rm -rf {{tbprofiler_result_path}}/bam
+rm -rf {{tbprofiler_result_path}}/vcf
+
+tar cvfz {{result_archive}} {{fixed_result_path}} {{unfixed_result_path}} {{tbprofiler_result_path}}
 """
 
 if __name__ == '__main__':
@@ -193,7 +187,8 @@ if __name__ == '__main__':
         "markkept_file": "%s.mixmarkkept" % stem0,
         "keptfilt_file": "%s.keptfilt" % stem0, "keptsnp_file": "%s.keptsnp" % stem0,
         "keptanofilt_file": "%s.keptanofilt" % stem0,
-        "result_file": "%s.finalresult" % stem0
+        "result_file": "%s.finalresult" % stem0,
+        "result_archive": "%s-results.tar.gz" % stem0
     }
     if "tb_profiler_env" in config_file:
         tb_profiler_templ = SCRIPT_TEMPLATE_TBPROFILER2
@@ -209,14 +204,16 @@ if __name__ == '__main__':
             "sai1": "%s.sai" % stem1, "sai2": "%s.sai" % stem2, "saiS": "%s_S.sai" % stem0
         })
         script_templ = jinja2.Template(SCRIPT_TEMPLATE_PRE + SCRIPT_TEMPLATE_PAIRED +
-                                       SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
+                                       SCRIPT_TEMPLATE_COMMON + tb_profiler_templ +
+                                       SCRIPT_TEMPLATE_CLEANUP)
     else:
         config.update({
             "fastq": fq1, "trimmed": "%s_trimmedS.fq" % stem0,
             "sai": "%s.sai" % stem0
         })
         script_templ = jinja2.Template(SCRIPT_TEMPLATE_PRE + SCRIPT_TEMPLATE_SINGLE +
-                                       SCRIPT_TEMPLATE_COMMON + tb_profiler_templ)
+                                       SCRIPT_TEMPLATE_COMMON + tb_profiler_templ +
+                                       SCRIPT_TEMPLATE_CLEANUP)
 
     script_out = script_templ.render(config)
     with open("%s_snp_calling.sh" % stem0, "w") as outfile:
