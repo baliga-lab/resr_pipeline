@@ -8,6 +8,11 @@ infile=$1
 
 while read l; do
     read -r sample url <<< "$l"
+    resultsfile="$sample""-results.tar.gz"
+    if test -f $resultsfile; then
+        echo "Result exists, next"
+        continue
+    fi
     echo "Downloading Sample: $sample"
     mkdir -p $sample && cd $sample
     wget $url
@@ -22,6 +27,7 @@ while read l; do
   	    # same input dir and result dir for easier management
   	    cd .. && ./make_snp_calling.py $sample "$sample" && chmod u+x $batchfile && "./$batchfile"
 	    aws s3 cp "$sample""-results.tar.gz" s3://baliga-bucket1
+        rm -rf $resultsfile $sample
   	else
   	    # cleanup and log the error
   	    cd .. && rm -rf $sample
